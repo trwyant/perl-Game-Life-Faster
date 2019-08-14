@@ -12,13 +12,13 @@ my $life = Game::Life::Faster->new( 10 );
 
 is_deeply $life, {
     breed	=> [ undef, undef, undef, 1 ],
-    grid	=> [
-	( [ ( [ 0, 0 ] ) x 10 ] ) x 10,
-    ],
     live	=> [ undef, undef, 1, 1 ],
-    size_x	=> 9,
-    size_y	=> 9,
-}, 'Initialized correctly';
+    max_x	=> 9,
+    max_y	=> 9,
+    size_x	=> 10,
+    size_y	=> 10,
+}, 'Initialized correctly'
+    or diag explain $life;
 
 $life->place_text_points( 0, 0, 'X', <<'EOD' );
 .X.
@@ -28,7 +28,20 @@ EOD
 
 $life->process( 10 );
 
-is scalar $life->get_text_grid(), <<'EOD', 'Run glider 10 steps';
+is_deeply $life->get_grid(), [
+    [ ( 0 ) x 10 ],
+    [ ( 0 ) x 10 ],
+    [ ( 0 ) x 10 ],
+    [ 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 ],
+    [ 0, 0, 1, 0, 1, 0, 0, 0, 0, 0 ],
+    [ 0, 0, 0, 1, 1, 0, 0, 0, 0, 0 ],
+    [ ( 0 ) x 10 ],
+    [ ( 0 ) x 10 ],
+    [ ( 0 ) x 10 ],
+    [ ( 0 ) x 10 ],
+], 'Grid after running glider 10 steps';
+
+is scalar $life->get_text_grid(), <<'EOD',
 ..........
 ..........
 ..........
@@ -40,7 +53,7 @@ is scalar $life->get_text_grid(), <<'EOD', 'Run glider 10 steps';
 ..........
 ..........
 EOD
-
+    'Text grid after running glider 10 steps';
 
 done_testing;
 

@@ -38,8 +38,8 @@ sub new {
     $self{size_x} =~ POSITIVE_INTEGER_RE
 	and $self{size_y} =~ POSITIVE_INTEGER_RE
 	or croak 'Sizes must be positive integers';
-    --$self{size_x};
-    --$self{size_y};
+    $self{max_x} = $self{size_x} - 1;
+    $self{max_y} = $self{size_y} - 1;
 
     $breed ||= DEFAULT_BREED;
     ARRAY_REF eq ref $breed
@@ -61,30 +61,50 @@ sub new {
 	$self{live}[$_] = 1;
     }
 
-    $self{grid} = [];
-
     my $me = bless \%self, ref $class || $class;
 
-    foreach my $x ( 0 .. $self{size_x} ) {
-	$self{grid}[$x] = [];
-	foreach my $y ( 0 .. $self{size_y} ) {
-	    $me->set_point_state( $x, $y, 0 );
-	}
-    }
-    delete $self{changed};
-
     return $me;
+}
+
+sub get_grid {
+    my ( $self ) = @_;
+    if ( $self->{grid} ) {
+	my @rslt;
+	foreach my $x ( 0 .. $self->{max_x} ) {
+	    if ( $self->{grid}[$x] ) {
+		push @rslt, [];
+		foreach my $y ( 0 .. $self->{max_y} ) {
+		    push @{ $rslt[-1] }, $self->{grid}[$x][$y] ?
+			$self->{grid}[$x][$y][0] ? 1 : 0 : 0;
+		}
+	    } else {
+		push @rslt, [ ( 0 ) x $self->{size_y} ];
+	    }
+	}
+	return \@rslt;
+    } else {
+	return [ ( [ ( 0 ) x $self->{size_y} ] ) x $self->{size_x} ];
+    }
 }
 
 sub get_text_grid {
     my ( $self, $living, $dead ) = @_;
     $living	||= 'X';
     $dead	||= '.';
-    my @char = ( $dead, $living );
     my @rslt;
-    foreach my $x ( 0 .. $self->{size_x} ) {
-	push @rslt, join '', map { $char[$self->{grid}[$x][$_][0]] }
-	0 .. $self->{size_y};
+    if ( $self->{grid} ) {
+	foreach my $x ( 0 .. $self->{max_x} ) {
+	    if ( $self->{grid}[$x] ) {
+		push @rslt, join '', map {
+		    ( $self->{grid}[$x][$_] && $self->{grid}[$x][$_][0]) ?
+		    $living : $dead
+		} 0 .. $self->{max_y};
+	    } else {
+		push @rslt, $dead x $self->{size_y};
+	    }
+	}
+    } else {
+	@rslt = ( $dead x $self->{size_y} ) x $self->{size_x};
     }
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
@@ -116,11 +136,12 @@ sub process {
 	foreach my $chg ( keys %{ $self->{changed} } ) {
 	    my ( $x, $y ) = split qr< , >smx, $chg;
 	    my $cell = $self->{grid}[$x][$y];
+	    no warnings qw{ uninitialized };
 	    if ( $cell->[0] ) {
-		$self->{live}[ $cell->[1] || 0 ]
+		$self->{live}[ $cell->[1] ]
 		    or push @toggle, [ $x, $y, 0 ];
 	    } else {
-		$self->{breed}[ $cell->[1] || 0 ]
+		$self->{breed}[ $cell->[1] ]
 		    and push @toggle, [ $x, $y, 1 ];
 	    }
 	}
@@ -134,10 +155,20 @@ sub process {
     return;
 }
 
+sub set_point {
+    my ( $self, $x, $y ) = @_;
+    return $self->set_point_state( $x, $y, 1 );
+}
+
 sub set_point_state {
     my ( $self, $x, $y, $state ) = @_;
-    my $off_grid = ( $x < 0 || $x > $self->{size_x} ||
-	$y < 0 || $y > $self->{size_y} )
+    defined $x
+	and defined $y
+	and $x =~ NON_NEGATIVE_INTEGER_RE
+	and $y =~ NON_NEGATIVE_INTEGER_RE
+	or croak 'Coordinates must be non-negative integers';
+    my $off_grid = ( $x < 0 || $x > $self->{max_x} ||
+	$y < 0 || $y > $self->{max_y} )
 	and $state
 	and croak 'Attempt to place living cell outside grid';
     $state = $state ? 1 : 0;
@@ -148,8 +179,8 @@ sub set_point_state {
     }
     my $delta = $state - $prev_val
 	or return $state;
-    foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{size_x}, $x + 1 ) ) {
-	foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{size_y}, $y + 1 ) ) {
+    foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
+	foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 ) ) {
 	    $self->{grid}[$ix][$iy][1] += $delta;
 	    $self->{changed}{"$ix,$iy"}++;
 	}
@@ -162,6 +193,11 @@ sub set_point_state {
 	--$self->{changed}{"$x,$y"};
     }
     return $state;
+}
+
+sub unset_point {
+    my ( $self, $x, $y ) = @_;
+    return $self->set_point_state( $x, $y, 0 );
 }
 
 1;
@@ -245,6 +281,16 @@ array. Order is not important.
 
 =back
 
+=head2 get_grid
+
+ use Data::Dumper;
+ print Dumper( $life->get_grid() );
+
+This method returns the state of the grid, as a reference to an array of
+array references. The contents of the inner arrays represent the states
+of the cells, with a true value representing a "living" cell and a false
+value representing a "dead" cell.
+
 =head2 get_text_grid
 
  print "$_\n" for $life->get_text_grid( $living, $dead );
@@ -294,6 +340,8 @@ lines, allowing something like
  XXX
  EOD
 
+The heavy lifting is done by L<set_point_state()|/set_point_state>.
+
 =head2 process
 
  $life->process( $iterations );
@@ -301,18 +349,36 @@ lines, allowing something like
 This method runs the game for the specified number of iterations, which
 defaults to C<1>.
 
+=head2 set_point
+
+ $life->set_point( $x, $y );
+
+This method sets the state of the point at position C<$x>, C<$y> of the
+grid to "living." It returns a true value.
+
+This method is a wrapper for L<set_point_state()|/set_point_state>.
+
 =head2 set_point_state
 
  $life->set_point_state( $x, $y, $state );
 
 This method sets the state of the point at position C<$x>, C<$y> of the
 grid to C<$state>. A true value of C<$state> sets the cell "living;" a
-false value sets it "dead."
+false value sets it "dead." It returns the state.
 
 An exception will be raised if you attempt to set a point "live" which
 is outside the grid.
 
 This method is an extension to L<Game::Life|Game::Life>.
+
+=head2 unset_point
+
+ $life->unset_point( $x, $y );
+
+This method sets the state of the point at position C<$x>, C<$y> of the
+grid to "dead." It returns a false value.
+
+This method is a wrapper for L<set_point_state()|/set_point_state>.
 
 =head1 SEE ALSO
 
