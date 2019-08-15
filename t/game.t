@@ -75,7 +75,8 @@ $life->place_text_points( 0, 0, 'X', <<'EOD' );
 XXX
 EOD
 
-$life->process( 10 );
+cmp_ok $life->process( 10 ), '==', 4,
+    'Last iteration of glider changed 4 cells';
 
 is_deeply $life->get_grid(), [
     [ ( 0 ) x 10 ],
@@ -170,6 +171,16 @@ is scalar $life->get_text_grid(), <<'EOD', 'Lone block after 10 steps';
 ..........
 ..........
 EOD
+
+$life = $life->new( [ 10, 5 ] );
+is scalar $life->get_text_grid(), <<'EOD', '10 x 5 grid';
+..........
+..........
+..........
+..........
+..........
+EOD
+
 
 done_testing;
 

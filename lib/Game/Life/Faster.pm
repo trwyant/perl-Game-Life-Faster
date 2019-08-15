@@ -30,8 +30,8 @@ sub new {
 
     my $ref = ref $size;
     if ( ARRAY_REF eq $ref ) {
-	$self->{size_x} = $size->[0];
-	$self->{size_y} = $size->[1];
+	$self->{size_x} = $size->[1];
+	$self->{size_y} = $size->[0];
     } elsif ( ! $ref ) {
 	$self->{size_x} = $self->{size_y} = $size;
     } else {
@@ -145,8 +145,10 @@ sub process {
     my ( $self, $steps ) = @_;
     $steps ||= 1;
 
+    my @toggle;
+
     foreach ( 1 .. $steps ) {
-	my @toggle;
+	@toggle = ();
 
 	foreach my $chg ( keys %{ $self->{changed} } ) {
 	    my ( $x, $y ) = split qr< , >smx, $chg;
@@ -167,7 +169,7 @@ sub process {
 	    $self->set_point_state( @{ $cell } );
 	}
     }
-    return;
+    return scalar @toggle;
 }
 
 sub set_point {
@@ -308,6 +310,10 @@ performance, particularly on large but mostly-empty grids.
 
 =head1 METHODS
 
+B<General note:> In all methods that specify C<$x>-C<$y> coordinates,
+the C<$x> is the row number (zero-based) and the C<$y> is the column
+number (also zero-based).
+
 This class supports the following public methods:
 
 =head2 new
@@ -324,7 +330,9 @@ are:
 This specifies the size of the grid. It must be either a positive
 integer (which creates a square grid) or a reference to an array
 containing two positive integers (which creates a rectangular grid of
-the given width and height.
+the given width and height). B<Note> that this means we specify number
+of columns before number of rows, which is inconsistent with the
+C<General note> above, but is consistent with L<Game::Life|Game::Life>.
 
 The default is C<100>.
 
@@ -474,6 +482,12 @@ The heavy lifting is done by L<set_point_state()|/set_point_state>.
 
 This method runs the game for the specified number of iterations, which
 defaults to C<1>.
+
+As an incompatible change to the same-named method of
+L<Game::Life|Game::Life>, the number of points that actually changed
+state is returned. If C<$iterations> is greater than C<1>, the return
+represents the last iteration. The corresponding
+L<Game::Life|Game::Life> method does not have an explicit C<return>.
 
 =head2 set_point
 
