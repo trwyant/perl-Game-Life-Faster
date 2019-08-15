@@ -51,6 +51,12 @@ sub new {
     return $self;
 }
 
+sub clear {
+    my ( $self ) = @_;
+    delete $self->{grid};
+    return $self;
+}
+
 sub get_breeding_rules {
     my ( $self ) = @_;
     return $self->get_rule( 'breed' );
@@ -206,7 +212,8 @@ sub set_point_state {
     # loops.
     unless ( $off_grid ) {
 	$self->{grid}[$x][$y][1] -= $delta;
-	--$self->{changed}{"$x,$y"};
+	--$self->{changed}{"$x,$y"}
+	    or delete $self->{changed}{"$x,$y"};
     }
     return $state;
 }
@@ -339,6 +346,13 @@ the cell will remain "living" if its number of neighbors appears in the
 array. Order is not important.
 
 =back
+
+=head2 clear
+
+This method clears the grid, setting all cells to "dead." It returns its
+invocant.
+
+This method is an extension to L<Game::Life|Game::Life>.
 
 =head2 get_breeding_rules
 
