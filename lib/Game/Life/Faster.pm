@@ -20,6 +20,9 @@ use constant NEW_LINE_RE		=> qr< \n >smx;
 use constant NON_NEGATIVE_INTEGER_RE	=> qr< \A [0-9]+ \z >smx;
 use constant POSITIVE_INTEGER_RE	=> qr< \A [1-9][0-9]* \z >smx;
 
+use constant TOGGLE_STATE	=> do { bless \my $x, 'Toggle_State' };
+use constant TOGGLE_STATE_REF	=> ref TOGGLE_STATE;
+
 sub new {
     my ( $class, $size, $breed, $live ) = @_;
 
@@ -41,29 +44,15 @@ sub new {
     $self{max_x} = $self{size_x} - 1;
     $self{max_y} = $self{size_y} - 1;
 
-    $breed ||= DEFAULT_BREED;
-    ARRAY_REF eq ref $breed
-	or croak 'Breed rule must be an array reference';
-    $self{breed} = [];
-    foreach ( @{ $breed } ) {
-	$_ =~ NON_NEGATIVE_INTEGER_RE
-	    or croak 'Breed rule must be a reference to an array of non-negative integers';
-	$self{breed}[$_] = 1;
-    }
-
-    $live ||= DEFAULT_LIVE;
-    ARRAY_REF eq ref $live
-	or croak 'Live rule must be an array reference';
-    $self{live} = [];
-    foreach ( @{ $live } ) {
-	$_ =~ NON_NEGATIVE_INTEGER_RE
-	    or croak 'Live rule must be a reference to an array of non-negative integers';
-	$self{live}[$_] = 1;
-    }
-
     my $me = bless \%self, ref $class || $class;
+    $me->set_rules( $breed, $live );
 
     return $me;
+}
+
+sub get_breeding_rules {
+    my ( $self ) = @_;
+    return( grep { $self->{breed}[$_] } 0 .. $#{ $self->{breed} } );
 }
 
 sub get_grid {
@@ -85,6 +74,11 @@ sub get_grid {
     } else {
 	return [ ( [ ( 0 ) x $self->{size_y} ] ) x $self->{size_x} ];
     }
+}
+
+sub get_living_rules {
+    my ( $self ) = @_;
+    return( grep { $self->{live}[$_] } 0 .. $#{ $self->{live} } );
 }
 
 sub get_text_grid {
@@ -171,6 +165,13 @@ sub set_point_state {
 	$y < 0 || $y > $self->{max_y} )
 	and $state
 	and croak 'Attempt to place living cell outside grid';
+    if ( TOGGLE_STATE_REF eq ref $state ) {
+	$state = 1;
+	$self->{grid}
+	    and $self->{grid}[$x]
+	    and $self->{grid}[$x][$y]
+	    and $state = ( ! $self->{grid}[$x][0] );
+    }
     $state = $state ? 1 : 0;
     my $prev_val = $off_grid ? 0 : $self->{grid}[$x][$y][0] ? 1 : 0;
     unless ( $off_grid ) {
@@ -193,6 +194,42 @@ sub set_point_state {
 	--$self->{changed}{"$x,$y"};
     }
     return $state;
+}
+
+{
+    my %dflt = (
+	breed	=> DEFAULT_BREED,
+	live	=> DEFAULT_LIVE,
+    );
+
+    sub set_rule {
+	my ( $self, $kind, $rule ) = @_;
+	$dflt{$kind}
+	    or croak "'$kind' is not a valid rule kind";
+	$rule ||= $dflt{$kind};
+	my $name = ucfirst $kind;
+	ARRAY_REF eq ref $rule
+	    or croak 'Breed rule must be an array reference';
+	$self->{$kind} = [];
+	foreach ( @{ $rule } ) {
+	    $_ =~ NON_NEGATIVE_INTEGER_RE
+		or croak "$name rule must be a reference to an array of non-negative integers";
+	    $self->{$kind}[$_] = 1;
+	}
+	return;
+    }
+}
+
+sub set_rules {
+    my ( $self, $breed, $live ) = @_;
+    $self->set_rule( breed => $breed );
+    $self->set_rule( live => $live );
+    return;
+}
+
+sub toggle_point {
+    my ( $self, $x, $y ) = @_;
+    return $self->set_point_state( $x, $y, TOGGLE_STATE );
 }
 
 sub unset_point {
@@ -281,6 +318,19 @@ array. Order is not important.
 
 =back
 
+=head2 get_breeding_rules
+
+ use Data::Dumper;
+ print Dumper( [ $self->get_breeding_rules() ] );
+
+This method returns the breeding rule, as specified in the C<$breed>
+argument to L<new()|/new>, but as an array rather than an array
+reference.
+
+B<Note> that this method always returns the data in ascending order. The
+corresponding L<Game::Life|Game::Life> method returns them in the
+originally-specified order.
+
 =head2 get_grid
 
  use Data::Dumper;
@@ -290,6 +340,19 @@ This method returns the state of the grid, as a reference to an array of
 array references. The contents of the inner arrays represent the states
 of the cells, with a true value representing a "living" cell and a false
 value representing a "dead" cell.
+
+=head2 get_living_rules
+
+ use Data::Dumper;
+ print Dumper( [ $self->get_living_rules() ] );
+
+This method returns the living rule, as specified in the C<$breed>
+argument to L<new()|/new>, but as an array rather than an array
+reference.
+
+B<Note> that this method always returns the data in ascending order. The
+corresponding L<Game::Life|Game::Life> method returns them in the
+originally-specified order.
 
 =head2 get_text_grid
 
@@ -357,6 +420,7 @@ This method sets the state of the point at position C<$x>, C<$y> of the
 grid to "living." It returns a true value.
 
 This method is a wrapper for L<set_point_state()|/set_point_state>.
+Because of this, it is fatal to attempt to set a point outside the grid.
 
 =head2 set_point_state
 
@@ -370,6 +434,62 @@ An exception will be raised if you attempt to set a point "live" which
 is outside the grid.
 
 This method is an extension to L<Game::Life|Game::Life>.
+
+=head2 set_rule
+
+ $life->set_rule( $kind, $rule );
+
+This method sets the C<breed> or C<live> rules, which govern the
+transition from "dead" to "living" and "living" to "dead" respectively.
+The arguments are:
+
+=over
+
+=item $kind
+
+This argument specifies the kind of rule being set, and must be either
+C<'breed'> or C<'live'>.
+
+=item $rule
+
+This argument specifies the actual rule. It must be either an array of
+non-negative integers specifying the number of neighbors that must exist
+to apply this rule, or a false value to specify the default.
+
+The defaults depend on the value of C<$kind> as follows:
+
+=over
+
+=item breed => [ 3 ]
+
+=item live => [ 2, 3 ]
+
+=back
+
+=back
+
+This method is an extension to L<Game::Life|Game::Life>.
+
+=head2 set_rules
+
+ $life->set_rules( $breed, $live );
+
+This method sets the C<breed> and C<live> rules from arguments C<$breed>
+and C<$live> respectively. It is implemented in terms of
+L<set_rule()|/set_rule>.
+
+=head2 toggle_point
+
+ $life->toggle_point( $x, $y );
+
+This method toggles the state of the point at position C<$x>, C<$y> of
+the grid. That is, if it was "dead" it becomes "living," and vice versa.
+It returns the a true value if the cell became "living," and a false one
+otherwise.
+
+This method is a wrapper for L<set_point_state()|/set_point_state>.
+Because of this, it is fatal to attempt to toggle a point outside the
+grid.
 
 =head2 unset_point
 
