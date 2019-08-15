@@ -26,33 +26,34 @@ use constant TOGGLE_STATE_REF	=> ref TOGGLE_STATE;
 sub new {
     my ( $class, $size, $breed, $live ) = @_;
 
-    my %self;
+    my $self;
 
     my $ref = ref $size;
     if ( ARRAY_REF eq $ref ) {
-	@self{ qw{ size_x size_y } } = @{ $size };
+	$self->{size_x} = $size->[0];
+	$self->{size_y} = $size->[1];
     } elsif ( ! $ref ) {
-	$self{size_x} = $self{size_y} = $size;
+	$self->{size_x} = $self->{size_y} = $size;
     } else {
 	croak "Argument may not be $size";
     }
-    $self{size_x} ||= DEFAULT_SIZE;
-    $self{size_y} ||= DEFAULT_SIZE;
-    $self{size_x} =~ POSITIVE_INTEGER_RE
-	and $self{size_y} =~ POSITIVE_INTEGER_RE
+    $self->{size_x} ||= DEFAULT_SIZE;
+    $self->{size_y} ||= DEFAULT_SIZE;
+    $self->{size_x} =~ POSITIVE_INTEGER_RE
+	and $self->{size_y} =~ POSITIVE_INTEGER_RE
 	or croak 'Sizes must be positive integers';
-    $self{max_x} = $self{size_x} - 1;
-    $self{max_y} = $self{size_y} - 1;
+    $self->{max_x} = $self->{size_x} - 1;
+    $self->{max_y} = $self->{size_y} - 1;
 
-    my $me = bless \%self, ref $class || $class;
-    $me->set_rules( $breed, $live );
+    bless $self, ref $class || $class;
+    $self->set_rules( $breed, $live );
 
-    return $me;
+    return $self;
 }
 
 sub get_breeding_rules {
     my ( $self ) = @_;
-    return( grep { $self->{breed}[$_] } 0 .. $#{ $self->{breed} } );
+    return $self->get_rule( 'breed' );
 }
 
 sub get_grid {
@@ -78,7 +79,7 @@ sub get_grid {
 
 sub get_living_rules {
     my ( $self ) = @_;
-    return( grep { $self->{live}[$_] } 0 .. $#{ $self->{live} } );
+    return $self->get_rule( 'live' );
 }
 
 sub get_text_grid {
@@ -102,6 +103,8 @@ sub get_text_grid {
     }
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
+
+# TODO place_points()
 
 sub place_text_points {
     my ( $self, $x, $y, $living, @array ) = @_;
@@ -201,6 +204,13 @@ sub set_point_state {
 	breed	=> DEFAULT_BREED,
 	live	=> DEFAULT_LIVE,
     );
+
+    sub get_rule {
+	my ( $self, $kind ) = @_;
+	$dflt{$kind}
+	    or croak "'$kind' is not a valid rule kind";
+	return( grep { $self->{$kind}[$_] } 0 .. $#{ $self->{$kind} } );
+    }
 
     sub set_rule {
 	my ( $self, $kind, $rule ) = @_;
@@ -353,6 +363,22 @@ reference.
 B<Note> that this method always returns the data in ascending order. The
 corresponding L<Game::Life|Game::Life> method returns them in the
 originally-specified order.
+
+=head2 get_rule
+
+ use Data::Dumper;
+ print "'$rule' rule is ", Dump( [ $life->get_rule( $rule ) ] );
+
+This method returns the rule specified by the C<$rule> argument, which
+must be either C<'breed'> or C<'live'>. B<Note> that in contrast to
+L<set_rule()|/set_rule>, this method returns an array rather than an
+array reference.
+
+B<Note> that this method always returns the data in ascending order. The
+corresponding L<Game::Life|Game::Life> method returns them in the
+originally-specified order.
+
+This method is an extension to L<Game::Life|Game::Life>.
 
 =head2 get_text_grid
 

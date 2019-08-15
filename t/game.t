@@ -104,6 +104,8 @@ is scalar $life->get_text_grid(), <<'EOD',
 EOD
     'Text grid after running glider 10 steps';
 
+# TODO add blinker, block and step.
+
 done_testing;
 
 1;
