@@ -1,0 +1,330 @@
+#!/usr/bin/env perl
+
+use 5.008;
+
+use strict;
+use warnings;
+
+use Getopt::Long 2.33 qw{ :config auto_version };
+use Pod::Usage;
+use Term::ReadLine;
+use Text::ParseWords qw{ shellwords };
+
+our $VERSION = '0.000_01';
+
+my %opt = (
+    autoprint	=> 0,
+    faster	=> 1,
+    size	=> 10,
+);
+
+GetOptions( \%opt,
+    qw{ autoprint! faster! size=s },
+    'size=s'	=> sub {
+	if ( $_[1] =~ m/ \A [1-9][0-9]* \z /smx ) {
+	    $opt{$_[0]} = $1;
+	} elsif ( $_[1] =~ m/ \A ( [1-9][0-9]* ) , ( [1-9][0-9]* ) \z /smx ) {
+	    $opt{$_[0]} = [ +$1, +$2 ];
+	} else {
+	    die "-size must be a positive integer, or two such comma-separated\n";
+	}
+	return;
+    },
+    help => sub { pod2usage( { -verbose => 2 } ) },
+) or pod2usage( { -verbose => 0 } );
+
+my $rl = Term::ReadLine->new( 'life' );
+
+my $life;
+
+if ( $opt{faster} ) {
+    warn "Using Game::Life::Faster\n";
+    require Game::Life::Faster;
+    $life = Game::Life::Faster->new( $opt{size} );
+} else {
+    warn "Using Game::Life\n";
+    require Game::Life;
+    $life = Game::Life->new( $opt{size} );
+}
+
+MAIN_LOOP:
+while ( defined( my $line = $rl->readline( 'life> ' ) ) ) {
+    chomp $line;
+    my ( $verb, @arg ) = shellwords( $line );
+    if ( my $code = __PACKAGE__->can( "cmd_$verb" ) ) {
+	eval {
+	    $code->( @arg );
+	    1;
+	} or warn $@;
+    } else {
+	warn "Verb '$verb' not recognized\n";
+    }
+}
+
+print "\n";
+
+sub cmd_autoprint {
+    @_
+	and $opt{autoprint} = $_[0];
+    print 'autoprint ', $opt{autoprint} ? "on\n" : "off\n";
+    return;
+}
+
+sub cmd_clear {
+    $life->clear();
+    return;
+}
+
+sub cmd_clear_point {
+    my ( $x, $y ) = @_;
+    $life->unset_point( $x, $y );
+    return;
+}
+
+sub cmd_exit {
+    no warnings qw{ exiting };
+    last MAIN_LOOP;
+}
+
+sub cmd_grid {
+    print "$_\n" for $life->get_text_grid();
+    return;
+}
+
+sub cmd_help {
+    pod2usage( { -verbose => 2, -exitval => 'NOEXIT' } ),
+    return;
+}
+
+sub cmd_load {
+    my ( $fn, $layers ) = @_;
+    defined $fn
+	or die "File name must be specified\n";
+    defined $layers
+	or $layers = '';
+    $layers =~ s/ \A (?= [^:] ) /:/smx;
+    open my $fh, "<$layers", $fn
+	or die "Failed to open $fn <$layers: $!\n";
+    my @array;
+    while ( <$fh> ) {
+	chomp;
+	push @array, uc $_;
+    }
+    close $fh;
+    $life->clear();
+    $life->place_text_points( 0, 0, 'X', @array );
+    return;
+}
+
+sub cmd_place_points {
+    my ( $x, $y, @array ) = @_;
+    $life->place_text_points( $x, $y, 'X', map { uc } @array );
+    return;
+}
+
+sub cmd_process {
+    my ( $steps ) = @_;
+    my $changes = $life->process( $steps );
+    $opt{faster}
+	and print "$changes cells changed state on the last iteration\n";
+    $opt{autoprint}
+	and goto &cmd_grid;
+    return;
+}
+
+sub cmd_save {
+    my ( $fn, $layers ) = @_;
+    defined $fn
+	or die "File name must be specified\n";
+    defined $layers
+	or $layers = '';
+    $layers =~ s/ \A (?= [^:] ) /:/smx;
+    open my $fh, ">$layers", $fn
+	or die "Failed to open $fn >$layers: $!\n";
+    foreach ( $life->get_text_grid() ) {
+	print { $fh } "$_\n";
+    }
+    close $fh;
+    return;
+}
+
+sub cmd_set_point {
+    my ( $x, $y ) = @_;
+    $life->set_point( $x, $y );
+    return;
+}
+
+sub cmd_unset_point {
+    my ( $x, $y ) = @_;
+    $life->unset_point( $x, $y );
+    return;
+}
+
+__END__
+
+=head1 TITLE
+
+game-life - Interactive wrapper for L<Game::Life::Faster|Game::Life::Faster>
+
+=head1 SYNOPSIS
+
+ game-life -help
+ game-life -version
+ game-life
+ life> place_points 0 0 .x ..x xxx
+ life> process
+ life> grid
+ ..........
+ X.X.......
+ .XX.......
+ .X........
+ ..........
+ ..........
+ ..........
+ ..........
+ ..........
+ ..........
+ life> exit
+
+=head1 OPTIONS
+
+=head2 -autoprint
+
+If this Boolean option is asserted, the grid is printed after it is
+processed.
+
+The default is C<-noautoprint>.
+
+=head2 -faster
+
+If this Boolean option is asserted,
+L<Game::Life::Faster|Game::Life::Faster> is used; if not,
+L<Game::Life|Game::Life> is used.
+
+The default is C<-faster>, but it can be negated using C<-nofaster>.
+
+=head2 -help
+
+This option displays the documentation for this script. The script then
+exits.
+
+=head2 -size
+
+ -size 20
+ -size 10,12
+
+This option specifies the size of the grid. It takes as its value either
+a single positive integer specifying a square grid of that size, or two
+comma-separated positive integers specifying a rectangular grid of that
+width and height.
+
+The default is C<-size 10>.
+
+=head2 -version
+
+This option displays the version of this script. The script then exits.
+
+=head1 DETAILS
+
+This Perl script provides an interactive interface to
+L<Game::Life::Faster|Game::Life::Faster>, or optionally to
+L<Game::Life|Game::Life>.
+
+=head1 COMMANDS
+
+The following commands are implemented:
+
+=head2 autoprint
+
+This command displays the L<-autoprint|/-autoprint> setting. If an
+argument is provided, the setting is changed to that value, which is
+interpreted as a Perl Boolean value.
+
+=head2 clear
+
+This command clears the grid.
+
+=head2 clear_point
+
+ life> clear_point 1 1
+
+This command clears the point at the given row and column. It is
+a synonym for L<unset_point|/unset_point>.
+
+=head2 exit
+
+This command causes the script to exit. An end-of-file also works.
+
+=head2 grid
+
+This command displays the grid. "Living" cells are represented by
+C<'X'>, "dead" cells by C<'.'>.
+
+=head2 help
+
+This command displays the same help provided by the L<-help|/-help>
+option, but the script does not exit.
+
+=head2 load
+
+ life> load game.life
+
+This command clears the grid and then loads the given file into it. The
+file is expected to specify "living" points by C<'X'> or C<'x'>; any
+other character represents a "dead" cell. Line breaks delimit rows.
+
+An optional second character can specify L<PerlIO|PerlIO> layers, eg:
+
+ life> load game.life :crlf:encoding(cp1252)
+
+=head2 place_points
+
+ life> place_points 0 0 .x ..x xxx
+
+This command places points into the grid. The first two arguments are
+the row and column coordinates of the first point. Subsequent arguments
+are string representations of the points to be placed, with each
+argument representing consecutive cells in consecutive rows. "Living"
+cells are represented by C<'X'> or C<'x'>; any other character
+represents a "dead" cell.
+
+The example places a glider in the top-left corner of the grid.
+
+=head2 process
+
+This command causes the game to be processed. An optional parameter
+specifies the number of iterations, the default being C<1>.
+
+=head2 set_point
+
+ life> set_point 1 2
+
+This command causes the cell in the specified row and columns to be set
+"living."
+
+=head2 unset_point
+
+ life> unset_point 1 1
+
+This command clears the point at the given row and column. It is
+a synonym for L<clear_point|/clear_point>.
+
+=head1 AUTHOR
+
+Thomas R. Wyant, III F<wyant at cpan dot org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Thomas R. Wyant, III
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl 5.10.0. For more details, see the full text
+of the licenses in the directory LICENSES.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
+
+=cut
+
+# ex: set textwidth=72 :
