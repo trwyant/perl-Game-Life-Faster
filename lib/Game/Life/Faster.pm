@@ -104,7 +104,19 @@ sub get_text_grid {
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
 
-# TODO place_points()
+sub place_points {
+    my ( $self, $x, $y, $array ) = @_;
+    my $ix = $x;
+    foreach my $row ( @{ $array } ) {
+	my $iy = $y;
+	foreach my $state ( @{ $row } ) {
+	    $self->set_point_state( $ix, $iy, $state );
+	    $iy++;
+	}
+	$ix++;
+    }
+    return;
+}
 
 sub place_text_points {
     my ( $self, $x, $y, $living, @array ) = @_;
@@ -114,8 +126,8 @@ sub place_text_points {
 	and @array = split qr< @{[ NEW_LINE_RE ]} >smx, $array[0];
     foreach my $line ( @array ) {
 	my $iy = $y;
-	foreach my $value ( map { $living eq $_ } split qr<>, $line ) {
-	    $self->set_point_state( $ix, $iy, $value );
+	foreach my $state ( map { $living eq $_ } split qr<>, $line ) {
+	    $self->set_point_state( $ix, $iy, $state );
 	    $iy++;
 	}
 	$ix++;
@@ -406,6 +418,17 @@ The default is C<'.'>.
 As an incompatible change to the same-named method of
 L<Game::Life|Game::Life>, if called in scalar context this method
 returns a single string representing the entire grid.
+
+=head2 place_points
+
+ $life->place_points( $x, $y, $array );
+
+This method populates a portion of the grid whose top left corner is
+specified by C<$x> and C<$y> with the state information found in
+C<$array>. This is a reference to an array of array references.  Each
+value of the inner array represents the state of the corresponding cell,
+with a true value representing "living," and a false value representing
+"dead."
 
 =head2 place_text_points
 
