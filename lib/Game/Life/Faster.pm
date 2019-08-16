@@ -150,16 +150,17 @@ sub process {
     foreach ( 1 .. $steps ) {
 	@toggle = ();
 
-	foreach my $chg ( keys %{ $self->{changed} } ) {
-	    my ( $x, $y ) = split qr< , >smx, $chg;
-	    my $cell = $self->{grid}[$x][$y];
-	    no warnings qw{ uninitialized };
-	    if ( $cell->[0] ) {
-		$self->{live}[ $cell->[1] ]
-		    or push @toggle, [ $x, $y, 0 ];
-	    } else {
-		$self->{breed}[ $cell->[1] ]
-		    and push @toggle, [ $x, $y, 1 ];
+	foreach my $x ( keys %{ $self->{changed} } ) {
+	    foreach my $y ( keys %{ $self->{changed}{$x} } ) {
+		my $cell = $self->{grid}[$x][$y];
+		no warnings qw{ uninitialized };
+		if ( $cell->[0] ) {
+		    $self->{live}[ $cell->[1] ]
+			or push @toggle, [ $x, $y, 0 ];
+		} else {
+		    $self->{breed}[ $cell->[1] ]
+			and push @toggle, [ $x, $y, 1 ];
+		}
 	    }
 	}
 
@@ -206,7 +207,7 @@ sub set_point_state {
     foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
 	foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 ) ) {
 	    $self->{grid}[$ix][$iy][1] += $delta;
-	    $self->{changed}{"$ix,$iy"}++;
+	    $self->{changed}{$ix}{$iy}++;
 	}
     }
     # A cell is not its own neighbor, but the above nested loops assumed
@@ -214,8 +215,8 @@ sub set_point_state {
     # loops.
     unless ( $off_grid ) {
 	$self->{grid}[$x][$y][1] -= $delta;
-	--$self->{changed}{"$x,$y"}
-	    or delete $self->{changed}{"$x,$y"};
+	--$self->{changed}{$x}{$y}
+	    or delete $self->{changed}{$x}{$y};
     }
     return $state;
 }
