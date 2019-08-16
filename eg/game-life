@@ -12,14 +12,36 @@ use Text::ParseWords qw{ shellwords };
 
 our $VERSION = '0.000_01';
 
+use constant IS_WINDOWS	=> { map { $_ => 1 } qw{ MSWin32 } }->{$^O};
+
+use constant CLEAR_STRING	=> -t STDOUT ? IS_WINDOWS ? do {
+    require Win32::Console;
+    Win32::Console->new( STD_OUTPUT_HANDLE )->Cls();
+} : do {
+    require Term::Cap;
+    Term::Cap->Tgetent( { OSPEED => 9600 } )->Tputs( 'cl' );
+} : '';
+
+use constant READER => -t STDIN ? do {
+    my $rl = Term::ReadLine->new( 'life' );
+    sub { return $rl->readline( $_[0] ) };
+} : sub { return scalar <STDIN> };
+
 my %opt = (
+    autoclear	=> 0,
     autoprint	=> 0,
+    dead	=> '.',
     faster	=> 1,
+    living	=> 'X',
     size	=> 10,
 );
 
+my $living_case;
+
 GetOptions( \%opt,
-    qw{ autoprint! faster! size=s },
+    qw{ autoclear! autoprint! faster! size=s },
+    'dead=s'	=> \&_state_opt,
+    'living=s'	=> \&_state_opt,
     'size=s'	=> sub {
 	if ( $_[1] =~ m/ \A [1-9][0-9]* \z /smx ) {
 	    $opt{$_[0]} = $1;
@@ -33,7 +55,9 @@ GetOptions( \%opt,
     help => sub { pod2usage( { -verbose => 2 } ) },
 ) or pod2usage( { -verbose => 0 } );
 
-my $rl = Term::ReadLine->new( 'life' );
+# This is needed only if -living was not specified.
+$living_case
+    or _state_opt( living => $opt{living} );
 
 my $life;
 
@@ -48,8 +72,10 @@ if ( $opt{faster} ) {
 }
 
 MAIN_LOOP:
-while ( defined( my $line = $rl->readline( 'life> ' ) ) ) {
+while ( defined( my $line = READER->( 'life> ' ) ) ) {
     chomp $line;
+    $line =~ m/ \A \s* (?: \z | \# ) /smx
+	and next;
     my ( $verb, @arg ) = shellwords( $line );
     if ( my $code = __PACKAGE__->can( "cmd_$verb" ) ) {
 	eval {
@@ -63,14 +89,26 @@ while ( defined( my $line = $rl->readline( 'life> ' ) ) ) {
 
 print "\n";
 
+sub cmd_autoclear {
+    return _bool_opt( autoclear => @_ );
+}
+
 sub cmd_autoprint {
-    @_
-	and $opt{autoprint} = $_[0];
-    print 'autoprint ', $opt{autoprint} ? "on\n" : "off\n";
+    return _bool_opt( autoprint => @_ );
+}
+
+sub _bool_opt {
+    my ( $name, $val ) = @_;
+    if ( @_ > 1 ) {
+	$val =~ m/ \A (?: false | no | off ) \z /smxi
+	    and $val = 0;
+	$opt{$name} = $val ? 1 : 0;
+    }
+    print "$name ", $opt{$name} ? "on\n" : "off\n";
     return;
 }
 
-sub cmd_clear {
+sub cmd_clear_grid {
     $life->clear();
     return;
 }
@@ -81,18 +119,34 @@ sub cmd_clear_point {
     return;
 }
 
+sub cmd_clear_screen {
+    print CLEAR_STRING;
+    return;
+}
+
+sub cmd_dead {
+    return _state_opt( dead => @_ );
+}
+
 sub cmd_exit {
     no warnings qw{ exiting };
     last MAIN_LOOP;
 }
 
 sub cmd_grid {
-    print "$_\n" for $life->get_text_grid();
+    $opt{autoclear}
+	and cmd_clear_screen();
+    print "$_\n" for $life->get_text_grid( $opt{living}, $opt{dead} );
     return;
 }
 
 sub cmd_help {
     pod2usage( { -verbose => 2, -exitval => 'NOEXIT' } ),
+    return;
+}
+
+sub cmd_living {
+    _state_opt( living => @_ );
     return;
 }
 
@@ -108,27 +162,30 @@ sub cmd_load {
     my @array;
     while ( <$fh> ) {
 	chomp;
-	push @array, uc $_;
+	push @array, $living_case->( $_ );
     }
     close $fh;
     $life->clear();
-    $life->place_text_points( 0, 0, 'X', @array );
+    $life->place_text_points( 0, 0, $opt{living}, @array );
     return;
 }
 
 sub cmd_place_points {
     my ( $x, $y, @array ) = @_;
-    $life->place_text_points( $x, $y, 'X', map { uc } @array );
+    $life->place_text_points( $x, $y, $opt{living}, map { $living_case->(
+	    $_ ) } @array );
     return;
 }
 
 sub cmd_process {
     my ( $steps ) = @_;
     my $changes = $life->process( $steps );
+    $opt{autoclear}
+	and cmd_clear_screen();
+    local $opt{autoclear} = 0;
     $opt{faster}
 	and print "$changes cells changed state on the last iteration\n";
-    $opt{autoprint}
-	and goto &cmd_grid;
+    cmd_grid();
     return;
 }
 
@@ -160,6 +217,32 @@ sub cmd_unset_point {
     return;
 }
 
+sub _state_opt {
+    my ( $name, $val ) = @_;
+    if ( @_ > 1 ) {
+	length $val
+	    or die "\u$name value must not be ''\n";
+	$opt{$name} = substr $val, 0, 1;
+	if ( my $code = __PACKAGE__->can( "_set_${name}_case" ) ) {
+	    $code->();
+	}
+    }
+    # The following is a kluge. I don't want this printed until the game
+    # is underway.
+    $life
+	and print "$name $opt{$name}\n";
+    return;
+}
+
+sub _set_living_case {
+    my ( $arg ) = @_;
+    $opt{living} =~ m/ \A [[:upper:]] \z /smx
+	and return $living_case = sub { uc $_[0] };
+    $opt{living} =~ m/ \A [[:lower:]] \z /smx
+	and return $living_case = sub { lc $_[0] };
+    return $living_case = sub { $_[0] };
+}
+
 __END__
 
 =head1 TITLE
@@ -188,12 +271,28 @@ game-life - Interactive wrapper for L<Game::Life::Faster|Game::Life::Faster>
 
 =head1 OPTIONS
 
+=head2 -autoclear
+
+If this Boolean option is asserted, the screen is cleared before the
+grid is printed.
+
+The default is C<-noautoclear>.
+
 =head2 -autoprint
 
 If this Boolean option is asserted, the grid is printed after it is
 processed.
 
 The default is C<-noautoprint>.
+
+=head2 -dead
+
+ -dead +
+
+This option specifies the character to be used for "dead" cells. If a
+letter is specified, uses of this letter on input will be case-blind.
+
+The default is C<-dead .>.
 
 =head2 -faster
 
@@ -207,6 +306,16 @@ The default is C<-faster>, but it can be negated using C<-nofaster>.
 
 This option displays the documentation for this script. The script then
 exits.
+
+=head2 -living
+
+ -living *
+
+This option specifies the character to be used for "living" cells. If a
+letter is specified, uses of this letter on input will be case-blind.
+
+The default is C<-living X>.
+
 
 =head2 -size
 
@@ -234,13 +343,23 @@ L<Game::Life|Game::Life>.
 
 The following commands are implemented:
 
+=head2 autoclear
+
+This command displays the L<-autoclear|/-autoclear> setting. If an
+argument is provided, the setting is changed to that value, which is
+interpreted as a Perl Boolean value, except for special-case values
+C<false>, C<no>, or C<off> (case-insensitive), which are treated as
+false.
+
 =head2 autoprint
 
 This command displays the L<-autoprint|/-autoprint> setting. If an
 argument is provided, the setting is changed to that value, which is
-interpreted as a Perl Boolean value.
+interpreted as a Perl Boolean value, except for special-case values
+C<false>, C<no>, or C<off> (case-insensitive), which are treated as
+false.
 
-=head2 clear
+=head2 clear_grid
 
 This command clears the grid.
 
@@ -250,6 +369,16 @@ This command clears the grid.
 
 This command clears the point at the given row and column. It is
 a synonym for L<unset_point|/unset_point>.
+
+=head2 clear_screen
+
+This command clears the screen. It does nothing if standard out is not a
+terminal.
+
+=head2 dead
+
+This command displays the L<-dead|/-dead> setting. If an argument is
+provided, the setting is changed to the first character of that value.
 
 =head2 exit
 
@@ -264,6 +393,11 @@ C<'X'>, "dead" cells by C<'.'>.
 
 This command displays the same help provided by the L<-help|/-help>
 option, but the script does not exit.
+
+=head2 living
+
+This command displays the L<-living|/-living> setting. If an argument is
+provided, the setting is changed to the first character of that value.
 
 =head2 load
 
