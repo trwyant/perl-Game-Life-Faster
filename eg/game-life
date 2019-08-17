@@ -128,6 +128,22 @@ sub cmd_dead {
     return _state_opt( dead => @_ );
 }
 
+sub cmd_dump {
+    my ( $method, @arg ) = @_;
+    my $data = $method ? $life->$method( @arg ) : $life->{grid};
+    if ( eval { require Data::Dump; 1; } ) {
+	print Data::Dump::dump( $data ), "\n";
+    } elsif ( eval { require Data::Dumper; 1; } ) {
+	no warnings qw{ once };
+	local $Data::Dumper::Terse = 1;
+	local $Data::Dumper::Sortkeys = 1;
+	print Data::Dumper::Dumper( $data );
+    } else {
+	die "No dumper available\n";
+    }
+    return;
+}
+
 sub cmd_exit {
     no warnings qw{ exiting };
     last MAIN_LOOP;
@@ -380,6 +396,21 @@ terminal.
 
 This command displays the L<-dead|/-dead> setting. If an argument is
 provided, the setting is changed to the first character of that value.
+
+=head2 dump
+
+This command is unsupported, in the sense that the author reserves the
+right to change or revoke it without notice.
+
+If arguments are specified, the first argument is the name of a
+L<Game::Life::Faster|Game::Life::Faster> method, and the value dumped is
+the result of calling that method with the subsequent arguments.
+
+If no arguments are specified, the internal representation of the grid
+is dumped.
+
+The output is serialized using C<Data::Dump::dump()> if that can be
+loaded, otherwise with C<Data::Dumper::Dumper()>.
 
 =head2 exit
 

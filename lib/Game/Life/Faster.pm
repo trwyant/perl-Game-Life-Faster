@@ -110,6 +110,35 @@ sub get_text_grid {
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
 
+sub get_used_grid {
+    my ( $self ) = @_;
+    $self->{grid}
+	or return;
+    my @rslt;
+    my $skip_x = 0;
+    foreach my $x ( 0 .. $self->{max_x} ) {
+	if ( $self->{grid}[$x] ) {
+	    push @rslt, ( undef ) x $skip_x;
+	    my $skip_y = $skip_x = 0;
+	    foreach my $y ( 0 .. $self->{max_y} ) {
+		if ( $self->{grid}[$x][$y] &&
+		    defined $self->{grid}[$x][$y][0] ) {
+		    @rslt > $x
+			or push @rslt, [];
+		    push @{ $rslt[-1] }, ( undef ) x $skip_y,
+			$self->{grid}[$x][$y][0];
+		    $skip_y = 0;
+		} else {
+		    $skip_y++;
+		}
+	    }
+	} else {
+	    $skip_x++;
+	}
+    }
+    return \@rslt;
+}
+
 sub place_points {
     my ( $self, $x, $y, $array ) = @_;
     my $ix = $x;
@@ -185,6 +214,8 @@ sub set_point_state {
 	and $x =~ NON_NEGATIVE_INTEGER_RE
 	and $y =~ NON_NEGATIVE_INTEGER_RE
 	or croak 'Coordinates must be non-negative integers';
+    defined $state
+	or return $state;
     my $off_grid = ( $x < 0 || $x > $self->{max_x} ||
 	$y < 0 || $y > $self->{max_y} )
 	and $state
@@ -267,6 +298,41 @@ sub toggle_point {
 sub unset_point {
     my ( $self, $x, $y ) = @_;
     return $self->set_point_state( $x, $y, 0 );
+}
+
+sub FREEZE {
+    my ( $self ) = @_;	# $serializer not used
+    my %data = (
+	breed			=> [ $self->get_breeding_rules() ],
+	interface_version	=> 1,
+	live			=> [ $self->get_living_rules() ],
+	size			=> $self->{size_x} == $self->{size_y} ?
+	    $self->{size_x} : [ $self->{size_y}, $self->{size_x} ],
+    );
+    $self->{grid}
+	and $data{grid} = $self->get_used_grid();
+    $self->{changed}
+	and $data{changed} = $self->{changed};
+    return \%data;
+}
+
+sub THAW {
+    my ( $class, undef, $data ) = @_;	# $serializer not used
+    my $iv = $data->{interface_version};
+    my $code = $class->can( "__THAW_$iv" )
+	or confess __PACKAGE__,
+	    " FREEZE/THAW interface version $iv not supported";
+    goto $code;
+}
+
+sub __THAW_1 {
+    my ( $class, undef, $data ) = @_;	# $serializer not used
+    my $self = $class->new( map { $data->{$_} } qw{ size breed live } );
+    $data->{grid}
+	and $self->place_points( 0, 0, $data->{grid} );
+    $data->{changed}
+	and $self->{changed} = $data->{changed};
+    return $self;
 }
 
 1;
@@ -442,6 +508,18 @@ As an incompatible change to the same-named method of
 L<Game::Life|Game::Life>, if called in scalar context this method
 returns a single string representing the entire grid.
 
+=head2 get_used_grid
+
+ use Data::Dumper;
+ print Dumper( $life->get_used_grid() );
+
+This method is similar to L<get_grid()|/get_grid>, but only returns
+cells that have actually been assigned a value, or acquired a value in
+the course of processing. Cells that have never had a value are
+represented by C<undef>. Trailing C<undef>s in a row are suppressed.
+Rows consisting only of unused cells are represented by C<undef>, not
+C<[]>, and trailing C<undef> rows are also suppressed.
+
 =head2 place_points
 
  $life->place_points( $x, $y, $array );
@@ -452,6 +530,9 @@ C<$array>. This is a reference to an array of array references.  Each
 value of the inner array represents the state of the corresponding cell,
 with a true value representing "living," and a false value representing
 "dead."
+
+As an incompatible change to the same-named method of
+L<Game::Life|Game::Life>, points whose value is C<undef> are ignored.
 
 =head2 place_text_points
 
@@ -505,8 +586,9 @@ Because of this, it is fatal to attempt to set a point outside the grid.
  $life->set_point_state( $x, $y, $state );
 
 This method sets the state of the point at position C<$x>, C<$y> of the
-grid to C<$state>. A true value of C<$state> sets the cell "living;" a
-false value sets it "dead." It returns the state.
+grid to C<$state>. An C<undef> value is ignored; a true value of
+C<$state> sets the cell "living;" a false value sets it "dead." It
+returns the state.
 
 An exception will be raised if you attempt to set a point "live" which
 is outside the grid.
@@ -577,6 +659,20 @@ This method sets the state of the point at position C<$x>, C<$y> of the
 grid to "dead." It returns a false value.
 
 This method is a wrapper for L<set_point_state()|/set_point_state>.
+
+=head1 SERIALIZATION AND DESERIALIZATION
+
+This package supports the L<Types::Serialiser|Types::Serialiser> object
+serialisation protocol. That is, it has C<FREEZE()> and C<THAW()>
+methods compatible with this specification.
+
+Note that, to the best of my knowledge, only C<CBOR::XS|CBOR::XS>
+supports this out of the box. L<Sereal::Encoder|Sereal::Encoder>
+requires at least version 2, with the C<freeze_callbacks> option set.
+Whether C<JSON> supports it or not depends on which C<JSON> module you
+are using (and which version of that module you have), and generally you
+have to turn on C<allow_tags()> (or something similar) to make it work,
+and you get non-standard JSON as a result.
 
 =head1 SEE ALSO
 
