@@ -185,7 +185,8 @@ sub cmd_process {
     local $opt{autoclear} = 0;
     $opt{faster}
 	and print "$changes cells changed state on the last iteration\n";
-    cmd_grid();
+    $opt{autoprint}
+	and cmd_grid();
     return;
 }
 
