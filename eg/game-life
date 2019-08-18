@@ -12,7 +12,12 @@ use Text::ParseWords qw{ shellwords };
 
 our $VERSION = '0.000_001';
 
+use constant IS_VMS	=> { map { $_ => 1 } qw{ VMS } }->{$^O};
 use constant IS_WINDOWS	=> { map { $_ => 1 } qw{ MSWin32 } }->{$^O};
+
+use constant PROFILE	=> IS_VMS ? 'sys$login:game_life.ini' :
+    IS_WINDOWS ? "@{[ $ENV{USERPROFILE} || $ENV{WINDIR} ]}/game_life.ini" :
+    "$ENV{HOME}/.game-life.ini";
 
 use constant CLEAR_STRING	=> -t STDOUT ? IS_WINDOWS ? do {
     require Win32::Console;
@@ -25,7 +30,7 @@ use constant CLEAR_STRING	=> -t STDOUT ? IS_WINDOWS ? do {
 use constant READER => -t STDIN ? do {
     my $rl = Term::ReadLine->new( 'life' );
     sub { return $rl->readline( $_[0] ) };
-} : sub { return scalar <STDIN> };
+} : sub { return <STDIN> };
 
 my %opt = (
     autoclear	=> 0,
@@ -33,6 +38,7 @@ my %opt = (
     dead	=> '.',
     faster	=> 1,
     living	=> 'X',
+    profile	=> -f PROFILE ? PROFILE : undef,
     size	=> 10,
 );
 
@@ -42,6 +48,12 @@ GetOptions( \%opt,
     qw{ autoclear! autoprint! faster! size=s },
     'dead=s'	=> \&_state_opt,
     'living=s'	=> \&_state_opt,
+    'profile=s'	=> sub {
+	-f $_[1]
+	    or die "File $_[1] not found\n";
+	$opt{$_[0]} = $_[1];
+	return;
+    },
     'size=s'	=> sub {
 	if ( $_[1] =~ m/ \A [1-9][0-9]* \z /smx ) {
 	    $opt{$_[0]} = $1;
@@ -60,6 +72,7 @@ $living_case
     or _state_opt( living => $opt{living} );
 
 my $life;
+my @reader_stack = ( READER );
 
 if ( $opt{faster} ) {
     warn "Using Game::Life::Faster\n";
@@ -71,8 +84,10 @@ if ( $opt{faster} ) {
     $life = Game::Life->new( $opt{size} );
 }
 
-MAIN_LOOP:
-while ( defined( my $line = READER->( 'life> ' ) ) ) {
+$opt{profile}
+    and cmd_source( $opt{profile} );
+
+while ( defined( my $line = reader( 'life> ' ) ) ) {
     chomp $line;
     $line =~ m/ \A \s* (?: \z | \# ) /smx
 	and next;
@@ -145,8 +160,8 @@ sub cmd_dump {
 }
 
 sub cmd_exit {
-    no warnings qw{ exiting };
-    last MAIN_LOOP;
+    pop @reader_stack;
+    return;
 }
 
 sub cmd_grid {
@@ -228,9 +243,28 @@ sub cmd_set_point {
     return;
 }
 
+sub cmd_source {
+    my ( $path ) = @_;
+    open my $fh, '<', $path
+	or die "Failed to open $path: $!\n";
+    push @reader_stack, sub { <$fh> };
+    return;
+}
+
 sub cmd_unset_point {
     my ( $x, $y ) = @_;
     $life->unset_point( $x, $y );
+    return;
+}
+
+sub reader {
+    my ( $arg ) = @_;
+    while ( @reader_stack ) {
+	my $rslt;
+	defined( $rslt = $reader_stack[-1]->( $arg ) )
+	    and return $rslt;
+	pop @reader_stack;
+    }
     return;
 }
 
@@ -333,6 +367,25 @@ letter is specified, uses of this letter on input will be case-blind.
 
 The default is C<-living X>.
 
+=head2 -profile
+
+ -profile game-life.ini
+
+This option specifies a profile file to read before prompting the user.
+The default depends on the operating system:
+
+=over
+
+=item * VMS: 'sys$login:game_life.ini'
+
+=item * Windows: "$ENV{USERPROFILE}/game_life.ini"
+
+=item * anything else: "$ENV{HOME}/.game-life.ini"
+
+=back
+
+B<Note> that any explicitly-specified file B<must> exist, but the defaut
+file need not exist.
 
 =head2 -size
 
@@ -414,7 +467,9 @@ loaded, otherwise with C<Data::Dumper::Dumper()>.
 
 =head2 exit
 
-This command causes the script to exit. An end-of-file also works.
+This command is the equivalent of end-of-file. If issued in a source
+file it terminates processing of that file. If issued from standard
+input or in response to a command prompt, this script exits.
 
 =head2 grid
 
@@ -467,6 +522,12 @@ specifies the number of iterations, the default being C<1>.
 
 This command causes the cell in the specified row and columns to be set
 "living."
+
+=head2 source
+
+ life> source life.source
+
+This command opens the given file and reads commands from it.
 
 =head2 unset_point
 
