@@ -10,7 +10,7 @@ use Pod::Usage;
 use Term::ReadLine;
 use Text::ParseWords qw{ shellwords };
 
-our $VERSION = '0.000_002';
+our $VERSION = '0.000_90';
 
 use constant IS_VMS	=> { map { $_ => 1 } qw{ VMS } }->{$^O};
 use constant IS_WINDOWS	=> { map { $_ => 1 } qw{ MSWin32 } }->{$^O};
