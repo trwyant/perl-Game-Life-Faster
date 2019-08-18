@@ -1,2 +1,12 @@
+0.000_002	2019-08-17	T. R. Wyant
+    Add source command and -profile to eg/game-life
+
+    Support Types::Serializer serialisation protocol a.k.a. the
+    FREEZE()/THAW() interface.
+
+    Fix eg/game-life autoprint bug.
+
+    Redo {changed} as hash of hashes.
+
 0.000_001	2019-08-16	T. R. Wyant
     First internal release
