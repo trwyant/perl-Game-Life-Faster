@@ -71,7 +71,7 @@ cmd_new( @ARGV );
 $opt{profile}
     and cmd_source( $opt{profile} );
 
-while ( defined( my $line = reader( 'life> ' ) ) ) {
+while ( defined( my $line = _reader( 'life> ' ) ) ) {
     chomp $line;
     $line =~ m/ \A \s* (?: \z | \# ) /smx
 	and next;
@@ -94,17 +94,6 @@ sub cmd_autoclear {
 
 sub cmd_autoprint {
     return _bool_opt( autoprint => @_ );
-}
-
-sub _bool_opt {
-    my ( $name, $val ) = @_;
-    if ( @_ > 1 ) {
-	$val =~ m/ \A (?: false | no | off ) \z /smxi
-	    and $val = 0;
-	$opt{$name} = $val ? 1 : 0;
-    }
-    print "$name ", $opt{$name} ? "on\n" : "off\n";
-    return;
 }
 
 sub cmd_clear_grid {
@@ -156,7 +145,7 @@ sub cmd_grid {
 }
 
 sub cmd_help {
-    pod2usage( { -verbose => 2, -exitval => 'NOEXIT' } ),
+    pod2usage( { -verbose => 2, -exitval => 'NOEXIT' } );
     return;
 }
 
@@ -172,7 +161,7 @@ sub cmd_load {
     local $/ = undef;
     open my $fh, '<:encoding(utf-8)', $fn
 	or die "Failed to open $fn: $!\n";
-    my $data = json()->decode( <$fh> );
+    my $data = _json()->decode( <$fh> );
     close $fh;
     ( my $path = sprintf '%s.pm', ref $data ) =~ s| :: |/|smxg;
     $INC{$path}
@@ -187,7 +176,7 @@ sub cmd_new {
     my @arg = @_;
     Getopt::Long::GetOptionsFromArray( \@arg, \%opt, qw{ faster! } )
 	or return;
-    my ( $size, $breed, $live ) = @_;
+    my ( $size, $breed, $live ) = @arg;
     _size( size => $size );
     _rule( breed => $breed );
     _rule( live => $live );
@@ -231,7 +220,7 @@ sub cmd_save {
 	or die "File name must be specified\n";
     open my $fh, '>:encoding(utf-8)', $fn
 	or die "Failed to open $fn: $!\n";
-    print { $fh } json()->encode( $life );
+    print { $fh } _json()->encode( $life );
     close $fh;
     return;
 }
@@ -244,7 +233,7 @@ sub cmd_set_point {
 
 sub cmd_source {
     my ( $path ) = @_;
-    open my $fh, '<', $path
+    open my $fh, '<', $path	## no critic (RequireBriefOpen)
 	or die "Failed to open $path: $!\n";
     push @reader_stack, sub { <$fh> };
     return;
@@ -253,6 +242,17 @@ sub cmd_source {
 sub cmd_unset_point {
     my ( $x, $y ) = @_;
     $life->unset_point( $x, $y );
+    return;
+}
+
+sub _bool_opt {
+    my ( $name, $val ) = @_;
+    if ( @_ > 1 ) {
+	$val =~ m/ \A (?: false | no | off ) \z /smxi
+	    and $val = 0;
+	$opt{$name} = $val ? 1 : 0;
+    }
+    print "$name ", $opt{$name} ? "on\n" : "off\n";
     return;
 }
 
@@ -265,12 +265,12 @@ sub _expand {
 	$val;
 }
 
-sub json {
+sub _json {
     require JSON;
     return JSON->new()->utf8()->pretty()->canonical()->allow_tags();
 }
 
-sub reader {
+sub _reader {
     my ( $arg ) = @_;
     while ( @reader_stack ) {
 	my $rslt;
@@ -296,15 +296,6 @@ sub _state_opt {
     $life
 	and print "$name $opt{$name}\n";
     return;
-}
-
-sub _set_living_case {
-    my ( $arg ) = @_;
-    $opt{living} =~ m/ \A [[:upper:]] \z /smx
-	and return $living_case = sub { uc $_[0] };
-    $opt{living} =~ m/ \A [[:lower:]] \z /smx
-	and return $living_case = sub { lc $_[0] };
-    return $living_case = sub { $_[0] };
 }
 
 sub _rule {
