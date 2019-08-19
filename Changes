@@ -1,2 +1,8 @@
+0.000_91	2019-08-19	T. R. Wyant
+    Correct (I hope) t/serialize.t and add diagnostics to get the
+    serializer class names and versions for failed tests.
+
+    Futz with eg/game-life
+
 0.000_90	2019-08-18	T. R. Wyant
     Initial CPAN release.
