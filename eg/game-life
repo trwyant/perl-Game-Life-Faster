@@ -35,33 +35,25 @@ use constant READER => -t STDIN ? do {
 my %opt = (
     autoclear	=> 0,
     autoprint	=> 0,
+    breed	=> [ 3 ],
     dead	=> '.',
     faster	=> 1,
+    live	=> [ 2, 3 ],
     living	=> 'X',
     profile	=> -f PROFILE ? PROFILE : undef,
-    size	=> 10,
+    size	=> 20,
 );
 
 my $living_case;
 
 GetOptions( \%opt,
-    qw{ autoclear! autoprint! faster! size=s },
+    qw{ autoclear! autoprint! faster! },
     'dead=s'	=> \&_state_opt,
     'living=s'	=> \&_state_opt,
     'profile=s'	=> sub {
 	-f $_[1]
 	    or die "File $_[1] not found\n";
 	$opt{$_[0]} = $_[1];
-	return;
-    },
-    'size=s'	=> sub {
-	if ( $_[1] =~ m/ \A [1-9][0-9]* \z /smx ) {
-	    $opt{$_[0]} = $1;
-	} elsif ( $_[1] =~ m/ \A ( [1-9][0-9]* ) , ( [1-9][0-9]* ) \z /smx ) {
-	    $opt{$_[0]} = [ +$1, +$2 ];
-	} else {
-	    die "-size must be a positive integer, or two such comma-separated\n";
-	}
 	return;
     },
     help => sub { pod2usage( { -verbose => 2 } ) },
@@ -74,15 +66,7 @@ $living_case
 my $life;
 my @reader_stack = ( READER );
 
-if ( $opt{faster} ) {
-    warn "Using Game::Life::Faster\n";
-    require Game::Life::Faster;
-    $life = Game::Life::Faster->new( $opt{size} );
-} else {
-    warn "Using Game::Life\n";
-    require Game::Life;
-    $life = Game::Life->new( $opt{size} );
-}
+cmd_new( @ARGV );
 
 $opt{profile}
     and cmd_source( $opt{profile} );
@@ -199,6 +183,28 @@ sub cmd_load {
     return;
 }
 
+sub cmd_new {
+    my @arg = @_;
+    Getopt::Long::GetOptionsFromArray( \@arg, \%opt, qw{ faster! } )
+	or return;
+    my ( $size, $breed, $live ) = @_;
+    _size( size => $size );
+    _rule( breed => $breed );
+    _rule( live => $live );
+    my $class;
+    if ( $opt{faster} ) {
+	$class = 'Game::Life::Faster';
+	require Game::Life::Faster;
+    } else {
+	$class = 'Game::Life';
+	require Game::Life;
+    }
+    print "$class->new( ", join( ', ', map{ _expand( $opt{$_} ) } qw{
+	    size breed live } ), ")\n";
+    $life = $class->new( map { $opt{$_} } qw{ size breed live } );
+    return;
+}
+
 sub cmd_place_points {
     my ( $x, $y, @array ) = @_;
     $life->place_text_points( $x, $y, $opt{living}, map { $living_case->(
@@ -250,6 +256,15 @@ sub cmd_unset_point {
     return;
 }
 
+sub _expand {
+    my ( $val ) = @_;
+    return ref $val ?
+	1 == @{ $val } ?
+	    $val->[0] :
+	    q<'> . join( ',', @{ $val } ) . q<'> :
+	$val;
+}
+
 sub json {
     require JSON;
     return JSON->new()->utf8()->pretty()->canonical()->allow_tags();
@@ -290,6 +305,32 @@ sub _set_living_case {
     $opt{living} =~ m/ \A [[:lower:]] \z /smx
 	and return $living_case = sub { lc $_[0] };
     return $living_case = sub { $_[0] };
+}
+
+sub _rule {
+    my ( $name, $val ) = @_;
+    defined $val
+	and '' ne $val
+	or return;
+    $val =~ m/ \A [0-9]+ (?: \s* , \s* [0-9]+ )* \z /smx
+	or die "\u$name must be a comma-separated list of non-negative integers\n";
+    $opt{$name} = [ split qr< \s* , \s* >smx, $val ];
+    return;
+}
+
+sub _size {
+    my ( $name, $val ) = @_;
+    defined $val
+	and '' ne $val
+	or return;
+    if ( $val =~ m/ \A [1-9][0-9]* \z /smx ) {
+	$opt{$name} = +$val;
+    } elsif ( $val =~ m/ \A ( [1-9][0-9]* ) , ( [1-9][0-9]* ) \z /smx ) {
+	$opt{$name} = [ +$1, +$2 ];
+    } else {
+	die "\u$name must be a positive integer, or two such comma-separated\n";
+    }
+    return;
 }
 
 __END__
@@ -385,18 +426,6 @@ The default depends on the operating system:
 B<Note> that any explicitly-specified file B<must> exist, but the defaut
 file need not exist.
 
-=head2 -size
-
- -size 20
- -size 10,12
-
-This option specifies the size of the grid. It takes as its value either
-a single positive integer specifying a square grid of that size, or two
-comma-separated positive integers specifying a rectangular grid of that
-width and height.
-
-The default is C<-size 10>.
-
 =head2 -version
 
 This option displays the version of this script. The script then exits.
@@ -406,6 +435,40 @@ This option displays the version of this script. The script then exits.
 This Perl script provides an interactive interface to
 L<Game::Life::Faster|Game::Life::Faster>, or optionally to
 L<Game::Life|Game::Life>.
+
+In addition to the above options this script accepts one to three
+arguments:
+
+=over
+
+=item size
+
+This is the size of the grid to produce. It is either a positive
+integer, or two positive integers separated by a comma. The former
+produces a square grid of the given size. The latter produces a
+rectangular grid of the given width and height.
+
+The default is C<20>.
+
+=item breed
+
+This is the breeding rule, specified as a comma-separated list of
+non-negative integers. "Dead" cells having one of the specified numbers
+of "living" neighbors will become "living" in the next generation.
+
+The default is C<3>.
+
+=item live
+
+This is the living rule, specified as a comma-separated list of
+non-negative integers. "Living" cells having one of the specified
+numbers of "living" neighbors will remain "living" in the next
+generation; all other "living" cells will become "dead" in the next
+generation.
+
+The default is C<2,3>.
+
+=back
 
 =head1 COMMANDS
 
@@ -488,7 +551,17 @@ provided, the setting is changed to the first character of that value.
 
  life> load life.json
 
-This command loads a new object from a file generated by L<save|/save>.
+This command loads a new game object from a file generated by
+L<save|/save>.
+
+=head2 new
+
+ life> new -faster 20 2 2,3
+
+This command replaces the old game object with a new one. The arguments
+are the same as for the script itself, but the only supported option is
+L<-faster|/-faster>. All arguments and options default to their previous
+value.
 
 =head2 place_points
 
