@@ -33,30 +33,44 @@ $life->__prune();
 is_deeply CLASS->THAW( undef, $life->FREEZE() ), $life,
 'FREEZE/THAW processed object';
 
-if ( eval { require JSON; JSON->VERSION( 3.0 ); 1 } ) {
+if ( eval { require JSON; JSON->can( 'allow_tags' ) } ) {
     my $json = JSON->new()->allow_tags();
+    my $ref = ref $json;
 
     is_deeply $json->decode( $json->encode( $life ) ), $life,
-	'JSON encode/decode processed object';
+	"$ref encode/decode processed object"
+	    or diag join ' ', $ref, $json->VERSION(),
+		'round-trip failure';
+} else {
+    note 'No usable JSON found; skipping.';
 }
 
-if ( eval { require CBOR::XS; CBOR::XS->can( 'FREEZE' ) } ) {
+if ( eval { require CBOR::XS; CBOR::XS->VERSION( 0.04 ) } ) {
 
     is_deeply CBOR::XS::decode_cbor( CBOR::XS::encode_cbor( $life ) ),
-    $life, 'CBOR::XS encode/decode processed object';
+	$life, 'CBOR::XS encode/decode processed object'
+	    or diag join ' ', 'CBOR::XS', CBOR::XS->VERSION(),
+		'round-trip-failure';
+} else {
+    note 'No usable CBOR::XS found; skipping.';
 }
 
 if ( eval {
 	require Sereal::Encoder;
-	Sereal::Encoder->VERSION ( 2 );
+	Sereal::Encoder->VERSION( 2 );
 	require Sereal::Decoder;
+	Sereal::Decoder->VERSION( 2 );
 	1 } ) {
     my $enc = Sereal::Encoder->new( {
 	    freeze_callbacks	=> 1,
 	} );
     my $dec = Sereal::Decoder->new();
     is_deeply $dec->decode( $enc->encode( $life ) ), $life,
-	'Sereal encode/decode processed object';
+	'Sereal encode/decode processed object'
+	    or diag join ' ', ref $dec, $dec->VERSION(),
+		ref $enc, $enc->VERSION(), 'round-trip failure';
+} else {
+    note 'No usable Sereal::Encoder/Sereal::Decoder found; skipping.';
 }
 
 done_testing;
