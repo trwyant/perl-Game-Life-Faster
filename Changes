@@ -1,3 +1,8 @@
+0.000_911	2019-08-19	T. R. Wyant
+    Use JSON::XS where JSON is required because only this supports
+    tagged JSON, and considerable effort has been expended to hide what
+    JSON backend is being used.
+
 0.000_91	2019-08-19	T. R. Wyant
     Correct (I hope) t/serialize.t and add diagnostics to get the
     serializer class names and versions for failed tests.
