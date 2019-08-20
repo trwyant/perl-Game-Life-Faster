@@ -1,3 +1,6 @@
+0.000_912	2019-08-20	T. R. Wyant
+    Another try at bullet-proofing t/serialize.t
+
 0.000_911	2019-08-19	T. R. Wyant
     Use JSON::XS where JSON is required because only this supports
     tagged JSON, and considerable effort has been expended to hide what
