@@ -266,8 +266,8 @@ sub _expand {
 }
 
 sub _json {
-    require JSON;
-    return JSON->new()->utf8()->pretty()->canonical()->allow_tags();
+    require JSON::XS;
+    return JSON::XS->new()->utf8()->pretty()->canonical()->allow_tags();
 }
 
 sub _reader {

@@ -33,8 +33,11 @@ $life->__prune();
 is_deeply CLASS->THAW( undef, $life->FREEZE() ), $life,
 'FREEZE/THAW processed object';
 
-if ( eval { require JSON; JSON->can( 'allow_tags' ) } ) {
-    my $json = JSON->new()->allow_tags();
+if ( eval {
+	require JSON::XS;
+	JSON::XS->can( 'allow_tags' )
+    } ) {
+    my $json = JSON::XS->new()->allow_tags();
     my $ref = ref $json;
 
     is_deeply $json->decode( $json->encode( $life ) ), $life,
