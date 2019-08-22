@@ -15,7 +15,7 @@ my $meta = My::Module::Meta->new();
 
 my %args = (
     dist_author => 'Thomas R. Wyant, III F<wyant at cpan dot org>',
-    dist_abstract => '<<< replace boilerplate >>>',
+    dist_abstract => q<Play John Horton Conway's Game of Life, hopefully faster than a naive implementation.>,
     module_name => 'Game::Life::Faster',
     build_requires => $meta->build_requires(),
     requires => $meta->requires(

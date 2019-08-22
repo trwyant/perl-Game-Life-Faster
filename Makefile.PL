@@ -19,7 +19,7 @@ my %args = (
     PL_FILES => {},	# Prevent old MakeMaker from running Build.PL
     'dist' => {COMPRESS => 'gzip', SUFFIX => 'gz'},
     AUTHOR => 'Thomas R. Wyant, III F<wyant at cpan dot org>',
-    ABSTRACT => '<<< replace boilerplate >>>',
+    ABSTRACT => q<Play John Horton Conway's Game of Life, hopefully faster than a naive implementation.>,
 );
 
 $mmv >= 6.31
