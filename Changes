@@ -1,5 +1,6 @@
 0.000_913	2019-08-22	T. R. Wyant
-    Correct abstract in metadata.
+    Correct abstract in metadata. Thanks to Robert Rothenberg for
+    bringing this to my attention.
 
 0.000_912	2019-08-20	T. R. Wyant
     Another try at bullet-proofing t/serialize.t
