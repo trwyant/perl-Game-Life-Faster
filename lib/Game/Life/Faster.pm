@@ -300,41 +300,6 @@ sub unset_point {
     return $self->set_point_state( $x, $y, 0 );
 }
 
-sub FREEZE {
-    my ( $self ) = @_;	# $serializer not used
-    my %data = (
-	breed			=> [ $self->get_breeding_rules() ],
-	interface_version	=> 1,
-	live			=> [ $self->get_living_rules() ],
-	size			=> $self->{size_x} == $self->{size_y} ?
-	    $self->{size_x} : [ $self->{size_y}, $self->{size_x} ],
-    );
-    $self->{grid}
-	and $data{grid} = $self->get_used_grid();
-    $self->{changed}
-	and $data{changed} = $self->{changed};
-    return \%data;
-}
-
-sub THAW {
-    my ( $class, undef, $data ) = @_;	# $serializer not used
-    my $iv = $data->{interface_version};
-    my $code = $class->can( "__THAW_$iv" )
-	or confess __PACKAGE__,
-	    " FREEZE/THAW interface version $iv not supported";
-    goto $code;
-}
-
-sub __THAW_1 {
-    my ( $class, undef, $data ) = @_;	# $serializer not used
-    my $self = $class->new( map { $data->{$_} } qw{ size breed live } );
-    $data->{grid}
-	and $self->place_points( 0, 0, $data->{grid} );
-    $data->{changed}
-	and $self->{changed} = $data->{changed};
-    return $self;
-}
-
 1;
 
 __END__
@@ -659,20 +624,6 @@ This method sets the state of the point at position C<$x>, C<$y> of the
 grid to "dead." It returns a false value.
 
 This method is a wrapper for L<set_point_state()|/set_point_state>.
-
-=head1 SERIALIZATION AND DESERIALIZATION
-
-This package supports the L<Types::Serialiser|Types::Serialiser> object
-serialisation protocol. That is, it has C<FREEZE()> and C<THAW()>
-methods compatible with this specification.
-
-Note that, to the best of my knowledge, only C<CBOR::XS|CBOR::XS>
-supports this out of the box. L<Sereal::Encoder|Sereal::Encoder>
-requires at least version 2, with the C<freeze_callbacks> option set.
-Whether C<JSON> supports it or not depends on which C<JSON> module you
-are using (and which version of that module you have), and generally you
-have to turn on C<allow_tags()> (or something similar) to make it work,
-and you get non-standard JSON as a result.
 
 =head1 SEE ALSO
 
