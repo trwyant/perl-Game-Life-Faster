@@ -1,3 +1,13 @@
+0.000_914	2019-08-24	T. R. Wyant
+    Remove FREEZE/THAW interface.  No idea why I thought this was a good
+    idea -- it was certainly a pain to test.
+    
+    The eg/game-life 'save' command now saves a source file with the
+    commands to recreate the object (or at least a reasonably equivalent
+    one). The 'load' command was eliminated.
+
+    Credit Robert Rothenberg with finding biolerplate
+
 0.000_913	2019-08-22	T. R. Wyant
     Correct abstract in metadata. Thanks to Robert Rothenberg for
     bringing this to my attention.
