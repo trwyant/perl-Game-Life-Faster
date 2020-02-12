@@ -1,6 +1,6 @@
 package My::Module::Meta;
 
-use 5.008;
+use 5.008001;
 
 use strict;
 use warnings;
@@ -19,7 +19,9 @@ sub new {
 
 sub build_requires {
     return +{
-	'Test::More'	=> 0.88,	# Because of done_testing().
+	'Test2::V0'			=> 0,
+	'Test2::Plugin::BailOnFail'	=> 0,
+	'Test2::Tools::LoadModule'	=> 0,
     };
 }
 
@@ -76,7 +78,7 @@ sub requires {
 }
 
 sub requires_perl {
-    return 5.008;
+    return 5.008001;
 }
 
 
