@@ -1,4 +1,4 @@
-0.001_01	2020-02-13	T. R. Wyant
+0.002		2020-02-21	T. R. Wyant
     Increase Perl dependency to 5.8.1 and convert testing to Test2::V0.
 
     Eliminate redirections in POD URL links
