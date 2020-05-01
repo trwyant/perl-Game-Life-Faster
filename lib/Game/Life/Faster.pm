@@ -110,6 +110,43 @@ sub get_text_grid {
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
 
+sub get_occupied_text_grid {
+    my ( $self, $living, $dead ) = @_;
+    $self->{grid}
+	or return;
+    $living	||= 'X';
+    $dead	||= '.';
+    my $max_x = 0;
+    my $min_x = $self->{size_x};
+    my $max_y = 0;
+    my $min_y = $self->{size_y};
+    foreach my $x ( 0 .. $self->{max_x} ) {
+	$self->{grid}[$x]
+	    or next;
+	foreach my $y ( 0 .. $self->{max_y} ) {
+	    $self->{grid}[$x][$y]
+		and $self->{grid}[$x][$y][0]
+		or next;
+	    $min_x = min( $min_x, $x );
+	    $max_x = max( $max_x, $x );
+	    $min_y = min( $min_y, $y );
+	    $max_y = max( $max_y, $y );
+	}
+    }
+
+    my $rslt;
+    foreach my $x ( $min_x .. $max_x ) {
+	foreach my $y ( $min_y .. $max_y ) {
+	    # Yes, I'm paranoid about autovivification.
+	    $rslt .= ( $self->{grid}[$x] && $self->{grid}[$x][$y] &&
+		$self->{grid}[$x][$y][0] ) ? $living : $dead;
+	}
+	$rslt .= "\n";
+    }
+
+    return ( $min_x, $min_y, $rslt );
+}
+
 sub get_used_grid {
     my ( $self ) = @_;
     $self->{grid}
@@ -472,6 +509,20 @@ The default is C<'.'>.
 As an incompatible change to the same-named method of
 L<Game::Life|Game::Life>, if called in scalar context this method
 returns a single string representing the entire grid.
+
+=head2 get_occupied_text_grid
+
+ my ( $x, $y, $grid ) = $life->get_occupied_text_grid()
+ print "${grid}at row $x column $y\n"
+
+This convenience method returns the living portion of the grid as
+text. Specifically, the returns are the number of the first row that
+contains a living cell, the number of the column that contains the first
+living cell, and the text grid with each line C<"\n">-terminated.
+
+If there are no living cells, nothing is returned.
+
+If called in scalar context you get the occupied grid.
 
 =head2 get_used_grid
 

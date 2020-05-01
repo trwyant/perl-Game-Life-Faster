@@ -104,6 +104,20 @@ is scalar $life->get_text_grid(), <<'EOD',
 EOD
     'Text grid after running glider 10 steps';
 
+{
+    my $want = <<'EOD';
+..X
+X.X
+.XX
+EOD
+    my ( $x, $y, $grid ) = $life->get_occupied_text_grid();
+    is $x, 3, 'Occupied grid starts at line 3';
+    is $y, 2, 'Occupied grid starts at column 2';
+    is $grid, $want, 'Occupied grid is expected string';
+    is scalar $life->get_occupied_text_grid(), $want,
+	'In scalar context just get occupied grid';
+}
+
 $life->place_points( 1, 0, [ [ 1, 1, 1 ] ] );
 $life->place_text_points( 1, 7, 'X', 'XX', 'XX' );
 is scalar $life->get_text_grid(), <<'EOD',
