@@ -120,6 +120,8 @@ sub get_occupied_text_grid {
     my $min_x = $self->{size_x};
     my $max_y = 0;
     my $min_y = $self->{size_y};
+    # NOTE: I tried foreach my $row ( @{ $self->{grid} } ) ...
+    # but that turned out to take about 50% longer
     foreach my $x ( 0 .. $self->{max_x} ) {
 	$self->{grid}[$x]
 	    or next;
