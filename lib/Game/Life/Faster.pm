@@ -234,6 +234,9 @@ sub process {
 
 	delete $self->{changed};
 
+	@toggle
+	    or return 0;
+
 	foreach my $cell ( @toggle ) {
 	    $self->set_point_state( @{ $cell } );
 	}
@@ -248,6 +251,7 @@ sub set_point {
 
 sub set_point_state {
     my ( $self, $x, $y, $state ) = @_;
+
     defined $x
 	and defined $y
 	and $x =~ NON_NEGATIVE_INTEGER_RE
@@ -255,39 +259,44 @@ sub set_point_state {
 	or croak 'Coordinates must be non-negative integers';
     defined $state
 	or return $state;
-    my $off_grid = ( $x < 0 || $x > $self->{max_x} ||
-	$y < 0 || $y > $self->{max_y} )
-	and $state
-	and croak 'Attempt to place living cell outside grid';
-    if ( TOGGLE_STATE_REF eq ref $state ) {
-	$state = 1;
-	$self->{grid}
-	    and $self->{grid}[$x]
-	    and $self->{grid}[$x][$y]
-	    and $state = ( ! $self->{grid}[$x][0] );
-    }
-    $state = $state ? 1 : 0;
-    my $prev_val = $off_grid ? 0 : $self->{grid}[$x][$y][0] ? 1 : 0;
-    unless ( $off_grid ) {
+
+    if ( $x >= 0 && $x < $self->{size_x} &&
+	$y >= 0 && $y < $self->{size_y}
+    ) {
+	if ( TOGGLE_STATE_REF eq ref $state ) {
+	    $state = 1;
+	    $self->{grid}
+		and $self->{grid}[$x]
+		and $self->{grid}[$x][$y]
+		and $state = ( ! $self->{grid}[$x][0] );
+	}
+	$state = $state ? 1 : 0;
+
+	my $prev_val = $self->{grid}[$x][$y][0] || 0;
 	$self->{grid}[$x][$y][0] = $state;
 	$self->{grid}[$x][$y][1] ||= 0;
-    }
-    my $delta = $state - $prev_val
-	or return $state;
-    foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
-	foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 ) ) {
-	    $self->{grid}[$ix][$iy][1] += $delta;
-	    $self->{changed}{$ix}{$iy}++;
+	my $delta = $state - $prev_val
+	    or return $state;
+
+	foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
+	    foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 )
+	    ) {
+		$self->{grid}[$ix][$iy][1] += $delta;
+		$self->{changed}{$ix}{$iy}++;
+	    }
 	}
-    }
-    # A cell is not its own neighbor, but the above nested loops assumed
-    # that it was. We fix that here, rather than skip it inside the
-    # loops.
-    unless ( $off_grid ) {
+
+	# A cell is not its own neighbor, but the above nested loops
+	# assumed that it was. We fix that here, rather than skip it
+	# inside the loops.
 	$self->{grid}[$x][$y][1] -= $delta;
 	--$self->{changed}{$x}{$y}
 	    or delete $self->{changed}{$x}{$y};
+
+    } elsif ( $state ) {
+	croak 'Attempt to place living cell outside grid';
     }
+
     return $state;
 }
 
