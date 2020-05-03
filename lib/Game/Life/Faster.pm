@@ -54,6 +54,8 @@ sub new {
 sub clear {
     my ( $self ) = @_;
     delete $self->{grid};
+    delete $self->{changed};
+    $self->{change_count} = 0;
     return $self;
 }
 
@@ -213,35 +215,29 @@ sub process {
     my ( $self, $steps ) = @_;
     $steps ||= 1;
 
-    my @toggle;
-
     foreach ( 1 .. $steps ) {
-	@toggle = ();
 
-	foreach my $x ( keys %{ $self->{changed} } ) {
-	    foreach my $y ( keys %{ $self->{changed}{$x} } ) {
+	my $changed = delete $self->{changed};
+	$self->{change_count} = 0;
+
+	foreach my $x ( keys %{ $changed } ) {
+	    foreach my $y ( keys %{ $changed->{$x} } ) {
 		my $cell = $self->{grid}[$x][$y];
 		no warnings qw{ uninitialized };
 		if ( $cell->[0] ) {
-		    $self->{live}[ $cell->[1] ]
-			or push @toggle, [ $x, $y, 0 ];
+		    $self->{live}[ $changed->{$x}{$y} ]
+			or $self->unset_point( $x, $y );
 		} else {
-		    $self->{breed}[ $cell->[1] ]
-			and push @toggle, [ $x, $y, 1 ];
+		    $self->{breed}[ $changed->{$x}{$y} ]
+			and $self->set_point( $x, $y );
 		}
 	    }
 	}
 
-	delete $self->{changed};
-
-	@toggle
-	    or return 0;
-
-	foreach my $cell ( @toggle ) {
-	    $self->set_point_state( @{ $cell } );
-	}
+	$self->{change_count}
+	    or last;
     }
-    return scalar @toggle;
+    return $self->{change_count};
 }
 
 sub set_point {
@@ -275,20 +271,21 @@ sub set_point_state {
 	my $delta = $state - $prev_state
 	    or return $state;
 
+	$self->{change_count}++;
+
 	foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
 	    foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 )
 	    ) {
-		$self->{grid}[$ix][$iy][1] += $delta;
-		$self->{changed}{$ix}{$iy}++;
+		$self->{changed}{$ix}{$iy} =
+		    $self->{grid}[$ix][$iy][1] += $delta;
 	    }
 	}
 
 	# A cell is not its own neighbor, but the above nested loops
 	# assumed that it was. We fix that here, rather than skip it
 	# inside the loops.
-	$self->{grid}[$x][$y][1] -= $delta;
-	--$self->{changed}{$x}{$y}
-	    or delete $self->{changed}{$x}{$y};
+	$self->{changed}{$x}{$y} =
+	    $self->{grid}[$x][$y][1] -= $delta;
 
     } elsif ( $state ) {
 	croak 'Attempt to place living cell outside grid';
