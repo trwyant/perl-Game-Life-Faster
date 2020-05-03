@@ -263,19 +263,16 @@ sub set_point_state {
     if ( $x >= 0 && $x < $self->{size_x} &&
 	$y >= 0 && $y < $self->{size_y}
     ) {
-	if ( TOGGLE_STATE_REF eq ref $state ) {
-	    $state = 1;
-	    $self->{grid}
-		and $self->{grid}[$x]
-		and $self->{grid}[$x][$y]
-		and $state = ( ! $self->{grid}[$x][0] );
-	}
-	$state = $state ? 1 : 0;
+	# We're on-grid.
 
-	my $prev_val = $self->{grid}[$x][$y][0] || 0;
+	# This autovivifies, but we're going to assign it anyway, so ...
+	my $prev_state = $self->{grid}[$x][$y][0] || 0;
+	$state = TOGGLE_STATE_REF eq ref $state ? 1 - $prev_state :
+	    $state ? 1 : 0;
+
 	$self->{grid}[$x][$y][0] = $state;
 	$self->{grid}[$x][$y][1] ||= 0;
-	my $delta = $state - $prev_val
+	my $delta = $state - $prev_state
 	    or return $state;
 
 	foreach my $ix ( max( 0, $x - 1 ) .. min( $self->{max_x}, $x + 1 ) ) {
