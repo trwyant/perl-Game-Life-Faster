@@ -48,6 +48,8 @@ sub new {
     bless $self, ref $class || $class;
     $self->set_rules( $breed, $live );
 
+    $self->clear();
+
     return $self;
 }
 
@@ -55,6 +57,8 @@ sub clear {
     my ( $self ) = @_;
     delete $self->{grid};
     delete $self->{changed};
+    $self->{living_x} = [];
+    $self->{living_y} = [];
     $self->{change_count} = 0;
     return $self;
 }
@@ -118,24 +122,24 @@ sub get_occupied_text_grid {
 	or return;
     $living	||= 'X';
     $dead	||= '.';
-    my $max_x = 0;
-    my $min_x = $self->{size_x};
-    my $max_y = 0;
-    my $min_y = $self->{size_y};
-    # NOTE: I tried foreach my $row ( @{ $self->{grid} } ) ...
-    # but that turned out to take about 50% longer
-    foreach my $x ( 0 .. $#{ $self->{grid} } ) {
-	$self->{grid}[$x]
-	    or next;
-	foreach my $y ( 0 .. $#{ $self->{grid}[$x] } ) {
-	    $self->{grid}[$x][$y]
-		and $self->{grid}[$x][$y][0]
-		or next;
-	    $min_x = min( $min_x, $x );
-	    $max_x = $x;
-	    $min_y = min( $min_y, $y );
-	    $max_y = max( $max_y, $y );
-	}
+    my ( $min_x, $max_x, $min_y, $max_y );
+    for ( $min_x = 0; $min_x < $self->{size_x}; $min_x++ ) {
+	$self->{living_x}[$min_x]
+	    and last;
+    }
+    for ( $max_x = $self->{size_x}; $max_x >= $min_x; ) {
+	$self->{living_x}[--$max_x]
+	    and last;
+    }
+    $max_x < $min_x
+	and return;
+    for ( $min_y = 0; $min_y < $self->{size_y}; $min_y++ ) {
+	$self->{living_y}[$min_y]
+	    and last;
+    }
+    for ( $max_y = $self->{size_y}; $max_y >= $min_y; ) {
+	$self->{living_y}[--$max_y]
+	    and last;
     }
 
     my $rslt;
@@ -270,6 +274,8 @@ sub set_point_state {
 	$self->{grid}[$x][$y][1] ||= 0;
 	my $delta = $state - $prev_state
 	    or return $state;
+	$self->{living_x}[$x] += $delta;
+	$self->{living_y}[$y] += $delta;
 
 	$self->{change_count}++;
 

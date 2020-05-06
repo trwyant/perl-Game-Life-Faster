@@ -16,6 +16,9 @@ is $life, {
     max_y	=> 9,
     size_x	=> 10,
     size_y	=> 10,
+    change_count => 0,
+    living_x	=> [],
+    living_y	=> [],
 }, 'Initialized correctly'
     or diag explain $life;
 
