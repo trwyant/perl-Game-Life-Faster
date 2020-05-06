@@ -30,45 +30,89 @@ is [ $life->get_living_rules() ],
 
 ok $life->toggle_point( 0, 0 ), 'toggle_point turned point on';
 
-is $life->{grid}, [
-    [ [ 1, 0 ], [ undef, 1 ] ],
-    [ [ undef, 1 ], [ undef, 1 ], ],
-], 'toggle_point left grid in correct state';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 1, 0 ],
+	1 => [ undef, 1 ],
+    },
+    1	=> {
+	0 => [ undef, 1 ],
+	1 => [ undef, 1 ],
+    },
+}, 'toggle_point left grid in correct state';
 
 ok ! $life->toggle_point( 0, 0 ), 'toggle_point again turned point off';
 
-is $life->{grid}, [
-    [ [ 0, 0 ], [ undef, 0 ] ],
-    [ [ undef, 0 ], [ undef, 0 ], ],
-], 'toggle_point again left grid in correct state';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 0, 0 ],
+	1 => [ undef, 0 ],
+    },
+    1	=> {
+	0 => [ undef, 0 ],
+	1 => [ undef, 0 ],
+    },
+}, 'toggle_point again left grid in correct state';
 
 ok $life->set_point( 0, 1 ), 'set_point turned point on';
 
-is $life->{grid}, [
-    [ [ 0, 1 ], [ 1, 0 ], [ undef, 1 ] ],
-    [ [ undef, 1 ], [ undef, 1 ], [ undef, 1 ] ],
-], 'set_point left grid in correct state';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 0, 1 ],
+	1 => [ 1, 0 ],
+	2 => [ undef, 1 ],
+    },
+    1	=> {
+	0 => [ undef, 1 ],
+	1 => [ undef, 1 ],
+	2 => [ undef, 1 ],
+    },
+}, 'set_point left grid in correct state';
 
 ok $life->set_point( 0, 1 ), 'set_point again left point on';
 
-is $life->{grid}, [
-    [ [ 0, 1 ], [ 1, 0 ], [ undef, 1 ] ],
-    [ [ undef, 1 ], [ undef, 1 ], [ undef, 1 ] ],
-], 'set_point again left grid unchanged';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 0, 1 ],
+	1 => [ 1, 0 ],
+	2 => [ undef, 1 ],
+    },
+    1	=> {
+	0 => [ undef, 1 ],
+	1 => [ undef, 1 ],
+	2 => [ undef, 1 ],
+    },
+}, 'set_point again left grid unchanged';
 
 ok ! $life->unset_point( 0, 0 ), 'unset_point on already-clear point';
 
-is $life->{grid}, [
-    [ [ 0, 1 ], [ 1, 0 ], [ undef, 1 ] ],
-    [ [ undef, 1 ], [ undef, 1 ], [ undef, 1 ] ],
-], 'unset_point on already-clear point left grid unchanged';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 0, 1 ],
+	1 => [ 1, 0 ],
+	2 => [ undef, 1 ],
+    },
+    1	=> {
+	0 => [ undef, 1 ],
+	1 => [ undef, 1 ],
+	2 => [ undef, 1 ],
+    },
+}, 'unset_point on already-clear point left grid unchanged';
 
 ok ! $life->unset_point( 0, 1 ), 'unset_point on set point';
 
-is $life->{grid}, [
-    [ [ 0, 0 ], [ 0, 0 ], [ undef, 0 ] ],
-    [ [ undef, 0 ], [ undef, 0 ], [ undef, 0 ] ],
-], 'unset_point on set point cleared it';
+is $life->{grid}, {
+    0	=> {
+	0 => [ 0, 0 ],
+	1 => [ 0, 0 ],
+	2 => [ undef, 0 ],
+    },
+    1	=> {
+	0 => [ undef, 0 ],
+	1 => [ undef, 0 ],
+	2 => [ undef, 0 ],
+    },
+}, 'unset_point on set point cleared it';
 
 
 $life->place_text_points( 0, 0, 'X', <<'EOD' );

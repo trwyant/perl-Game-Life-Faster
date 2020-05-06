@@ -73,11 +73,11 @@ sub get_grid {
     if ( $self->{grid} ) {
 	my @rslt;
 	foreach my $x ( 0 .. $self->{max_x} ) {
-	    if ( $self->{grid}[$x] ) {
+	    if ( $self->{grid}{$x} ) {
 		push @rslt, [];
 		foreach my $y ( 0 .. $self->{max_y} ) {
-		    push @{ $rslt[-1] }, $self->{grid}[$x][$y] ?
-			$self->{grid}[$x][$y][0] ? 1 : 0 : 0;
+		    push @{ $rslt[-1] }, $self->{grid}{$x}{$y} ?
+			$self->{grid}{$x}{$y}[0] ? 1 : 0 : 0;
 		}
 	    } else {
 		push @rslt, [ ( 0 ) x $self->{size_y} ];
@@ -101,9 +101,9 @@ sub get_text_grid {
     my @rslt;
     if ( $self->{grid} ) {
 	foreach my $x ( 0 .. $self->{max_x} ) {
-	    if ( $self->{grid}[$x] ) {
+	    if ( $self->{grid}{$x} ) {
 		push @rslt, join '', map {
-		    ( $self->{grid}[$x][$_] && $self->{grid}[$x][$_][0]) ?
+		    ( $self->{grid}{$x}{$_} && $self->{grid}{$x}{$_}[0]) ?
 		    $living : $dead
 		} 0 .. $self->{max_y};
 	    } else {
@@ -146,8 +146,8 @@ sub get_occupied_text_grid {
     foreach my $x ( $min_x .. $max_x ) {
 	foreach my $y ( $min_y .. $max_y ) {
 	    # Yes, I'm paranoid about autovivification.
-	    $rslt .= ( $self->{grid}[$x] && $self->{grid}[$x][$y] &&
-		$self->{grid}[$x][$y][0] ) ? $living : $dead;
+	    $rslt .= ( $self->{grid}{$x} && $self->{grid}{$x}{$y} &&
+		$self->{grid}{$x}{$y}[0] ) ? $living : $dead;
 	}
 	$rslt .= "\n";
     }
@@ -162,16 +162,16 @@ sub get_used_grid {
     my @rslt;
     my $skip_x = 0;
     foreach my $x ( 0 .. $self->{max_x} ) {
-	if ( $self->{grid}[$x] ) {
+	if ( $self->{grid}{$x} ) {
 	    push @rslt, ( undef ) x $skip_x;
 	    my $skip_y = $skip_x = 0;
 	    foreach my $y ( 0 .. $self->{max_y} ) {
-		if ( $self->{grid}[$x][$y] &&
-		    defined $self->{grid}[$x][$y][0] ) {
+		if ( $self->{grid}{$x}{$y} &&
+		    defined $self->{grid}{$x}{$y}[0] ) {
 		    @rslt > $x
 			or push @rslt, [];
 		    push @{ $rslt[-1] }, ( undef ) x $skip_y,
-			$self->{grid}[$x][$y][0];
+			$self->{grid}{$x}{$y}[0];
 		    $skip_y = 0;
 		} else {
 		    $skip_y++;
@@ -226,7 +226,7 @@ sub process {
 
 	foreach my $x ( keys %{ $changed } ) {
 	    foreach my $y ( keys %{ $changed->{$x} } ) {
-		my $cell = $self->{grid}[$x][$y];
+		my $cell = $self->{grid}{$x}{$y};
 		no warnings qw{ uninitialized };
 		if ( $cell->[0] ) {
 		    $self->{live}[ $changed->{$x}{$y} ]
@@ -266,12 +266,12 @@ sub set_point_state {
 	# We're on-grid.
 
 	# This autovivifies, but we're going to assign it anyway, so ...
-	my $prev_state = $self->{grid}[$x][$y][0] || 0;
+	my $prev_state = $self->{grid}{$x}{$y}[0] || 0;
 	$state = TOGGLE_STATE_REF eq ref $state ? 1 - $prev_state :
 	    $state ? 1 : 0;
 
-	$self->{grid}[$x][$y][0] = $state;
-	$self->{grid}[$x][$y][1] ||= 0;
+	$self->{grid}{$x}{$y}[0] = $state;
+	$self->{grid}{$x}{$y}[1] ||= 0;
 	my $delta = $state - $prev_state
 	    or return $state;
 	$self->{living_x}[$x] += $delta;
@@ -283,7 +283,7 @@ sub set_point_state {
 	    foreach my $iy ( max( 0, $y - 1 ) .. min( $self->{max_y}, $y + 1 )
 	    ) {
 		$self->{changed}{$ix}{$iy} =
-		    $self->{grid}[$ix][$iy][1] += $delta;
+		    $self->{grid}{$ix}{$iy}[1] += $delta;
 	    }
 	}
 
@@ -291,7 +291,7 @@ sub set_point_state {
 	# assumed that it was. We fix that here, rather than skip it
 	# inside the loops.
 	$self->{changed}{$x}{$y} =
-	    $self->{grid}[$x][$y][1] -= $delta;
+	    $self->{grid}{$x}{$y}[1] -= $delta;
 
     } elsif ( $state ) {
 	croak 'Attempt to place living cell outside grid';
