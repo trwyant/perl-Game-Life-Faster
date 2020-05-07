@@ -89,6 +89,14 @@ while ( defined( my $line = _reader( 'life> ' ) ) ) {
 
 print "\n";
 
+sub cmd_active {
+    my ( $living, $dead ) = @_;
+    my ( $min_x, $min_y, $rslt ) = $life->get_active_text_grid(
+	$living, $dead );
+    print "$min_x,$min_y\n$rslt";
+    return;
+}
+
 sub cmd_autoclear {
     return _bool_opt( autoclear => @_ );
 }
@@ -174,6 +182,14 @@ sub cmd_new {
     print "$class->new( ", join( ', ', map{ _expand( $opt{$_} ) } qw{
 	    size breed live } ), ")\n";
     $life = $class->new( map { $opt{$_} } qw{ size breed live } );
+    return;
+}
+
+sub cmd_occupied {
+    my ( $living, $dead ) = @_;
+    my ( $min_x, $min_y, $rslt ) = $life->get_occupied_text_grid(
+	$living, $dead );
+    print "$min_x,$min_y\n$rslt";
     return;
 }
 
@@ -472,6 +488,14 @@ The default is C<2,3>.
 
 The following commands are implemented:
 
+=head2 active
+
+ life> active
+
+This command displays the active portion of the grid as returned by the
+L<get_active_text_grid()|Game::Life::Faster/get_active_text_grid>
+method.
+
 =head2 autoclear
 
 This command displays the L<-autoclear|/-autoclear> setting. If an
@@ -553,6 +577,15 @@ This command replaces the old game object with a new one. The arguments
 are the same as for the script itself, but the only supported option is
 L<-faster|/-faster>. All arguments and options default to their previous
 value.
+
+=head2 occupied
+
+ life> occupied
+
+This command displays the occupied portion of the grid as returned by
+the
+L<get_occupied_text_grid()|Game::Life::Faster/get_occupied_text_grid>
+method.
 
 =head2 place_points
 
