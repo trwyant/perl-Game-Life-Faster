@@ -116,6 +116,37 @@ sub get_text_grid {
     return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
 }
 
+sub get_active_text_grid {
+    my ( $self, $living, $dead ) = @_;
+    $self->{grid}
+	or return;
+    $living	||= 'X';
+    $dead	||= '.';
+    my ( $min_x, $max_x, $min_y, $max_y ) = ( $self->{size_x}, 0,
+	$self->{size_y}, 0 );
+    foreach my $ix ( keys %{ $self->{changed} } ) {
+	$min_x = $ix if $ix < $min_x;
+	$max_x = $ix if $ix > $max_x;
+	foreach my $iy ( keys %{ $self->{changed}{$ix} } ) {
+	    $min_y = $iy if $iy < $min_y;
+	    $max_y = $iy if $iy > $max_y;
+	}
+    }
+    $max_x < $min_x
+	and return;
+    my $rslt;
+    foreach my $x ( $min_x .. $max_x ) {
+	foreach my $y ( $min_y .. $max_y ) {
+	    # Yes, I'm paranoid about autovivification.
+	    $rslt .= ( $self->{grid}{$x} && $self->{grid}{$x}{$y} &&
+		$self->{grid}{$x}{$y}[0] ) ? $living : $dead;
+	}
+	$rslt .= "\n";
+    }
+
+    return ( $min_x, $min_y, $rslt );
+}
+
 sub get_occupied_text_grid {
     my ( $self, $living, $dead ) = @_;
     $self->{grid}
@@ -441,6 +472,24 @@ This method clears the grid, setting all cells to "dead." It returns its
 invocant.
 
 This method is an extension to L<Game::Life|Game::Life>.
+
+=head2 get_active_text_grid
+
+ my ( $x, $y, $grid ) = $life->get_active_text_grid()
+ print "${grid}at row $x column $y\n"
+
+This convenience method returns the active portion of the grid as
+text. Specifically, the returns are the number of the first row that
+contains an active cell, the number of the column that contains the first
+active cell, and the text grid with each line C<"\n">-terminated.
+
+A cell is considered active if its number of neighbors changed in the
+most-recent call to L<process()|/process>, as a result of any manual
+modifications since that call, or both.
+
+If there are no active cells, nothing is returned.
+
+If called in scalar context you get the active grid.
 
 =head2 get_breeding_rules
 

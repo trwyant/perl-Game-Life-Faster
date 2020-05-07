@@ -165,6 +165,22 @@ EOD
 	'In scalar context just get occupied grid';
 }
 
+{
+    my $want = <<'EOD';
+.....
+...X.
+.X.X.
+..XX.
+.....
+EOD
+    my ( $x, $y, $grid ) = $life->get_active_text_grid();
+    is $x, 2, 'Active grid starts at line 2';
+    is $y, 1, 'Active grid starts at column 1';
+    is $grid, $want, 'Active grid is expected string';
+    is scalar $life->get_active_text_grid(), $want,
+	'In scalar context just get active grid';
+}
+
 $life->place_points( 1, 0, [ [ 1, 1, 1 ] ] );
 $life->place_text_points( 1, 7, 'X', 'XX', 'XX' );
 is scalar $life->get_text_grid(), <<'EOD',
