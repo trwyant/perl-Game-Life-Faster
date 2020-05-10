@@ -185,9 +185,9 @@ sub cmd_new {
     return;
 }
 
-sub cmd_occupied {
+sub cmd_used {
     my ( $living, $dead ) = @_;
-    my ( $min_x, $min_y, $rslt ) = $life->get_occupied_text_grid(
+    my ( $min_x, $min_y, $rslt ) = $life->get_used_text_grid(
 	$living, $dead );
     print "$min_x,$min_y\n$rslt";
     return;
@@ -578,15 +578,6 @@ are the same as for the script itself, but the only supported option is
 L<-faster|/-faster>. All arguments and options default to their previous
 value.
 
-=head2 occupied
-
- life> occupied
-
-This command displays the occupied portion of the grid as returned by
-the
-L<get_occupied_text_grid()|Game::Life::Faster/get_occupied_text_grid>
-method.
-
 =head2 place_points
 
  life> place_points 0 0 .x ..x xxx
@@ -634,6 +625,15 @@ This command opens the given file and reads commands from it.
 
 This command clears the point at the given row and column. It is
 a synonym for L<clear_point|/clear_point>.
+
+=head2 used
+
+ life> used
+
+This command displays the used portion of the grid as returned by
+the
+L<get_used_text_grid()|Game::Life::Faster/get_used_text_grid>
+method.
 
 =head1 AUTHOR
 

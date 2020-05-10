@@ -147,7 +147,7 @@ sub get_active_text_grid {
     return ( $min_x, $min_y, $rslt );
 }
 
-sub get_occupied_text_grid {
+sub get_used_text_grid {
     my ( $self, $living, $dead ) = @_;
     $self->{grid}
 	or return;
@@ -570,9 +570,9 @@ As an incompatible change to the same-named method of
 L<Game::Life|Game::Life>, if called in scalar context this method
 returns a single string representing the entire grid.
 
-=head2 get_occupied_text_grid
+=head2 get_used_text_grid
 
- my ( $x, $y, $grid ) = $life->get_occupied_text_grid()
+ my ( $x, $y, $grid ) = $life->get_used_text_grid()
  print "${grid}at row $x column $y\n"
 
 This convenience method returns the living portion of the grid as
@@ -582,7 +582,7 @@ living cell, and the text grid with each line C<"\n">-terminated.
 
 If there are no living cells, nothing is returned.
 
-If called in scalar context you get the occupied grid.
+If called in scalar context you get the living portion of the grid.
 
 =head2 get_used_grid
 

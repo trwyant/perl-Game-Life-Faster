@@ -54,7 +54,7 @@ if ( $opt{display} ) {
 	$iteration_time += clock() - $start_time;
 	$start_time = clock();
 	print HCS;
-	my ( $row, $col, $grid ) = $life->get_occupied_text_grid();
+	my ( $row, $col, $grid ) = $life->get_used_text_grid();
 	print "$row, $col\n$grid";
 	$output_time += clock() - $start_time;
 	$start_time = clock();
@@ -63,7 +63,7 @@ if ( $opt{display} ) {
     $life->process( $steps );
     $iteration_time = clock() - $start_time;
     $start_time = clock();
-    my ( $row, $col, $grid ) = $life->get_occupied_text_grid();
+    my ( $row, $col, $grid ) = $life->get_used_text_grid();
     print "$row,$col\n$grid";
     $output_time = clock() - $start_time;
 }
@@ -78,7 +78,7 @@ if ( $opt{time} ) {
 }
 
 # Gross encapsulation violation.
-sub Game::Life::get_occupied_text_grid {
+sub Game::Life::get_used_text_grid {
     my ( $self, $living, $dead ) = @_;
     defined $living
 	or $living = 'X';

@@ -157,11 +157,11 @@ EOD
 X.X
 .XX
 EOD
-    my ( $x, $y, $grid ) = $life->get_occupied_text_grid();
+    my ( $x, $y, $grid ) = $life->get_used_text_grid();
     is $x, 3, 'Occupied grid starts at line 3';
     is $y, 2, 'Occupied grid starts at column 2';
     is $grid, $want, 'Occupied grid is expected string';
-    is scalar $life->get_occupied_text_grid(), $want,
+    is scalar $life->get_used_text_grid(), $want,
 	'In scalar context just get occupied grid';
 }
 
