@@ -85,10 +85,10 @@ sub Game::Life::get_used_text_grid {
     defined $dead
 	or $dead = '.';
 
-    my ( $min_x, $max_x, $min_y, $max_y ) = ( $self->{size_x}, 1,
-	$self->{size_y}, 1 );
-    foreach my $ix ( 1 .. $self->{size_x} ) {
-	foreach my $iy ( 1 .. $self->{size_y} ) {
+    my ( $min_x, $max_x, $min_y, $max_y ) = (
+	$self->{size_x}, 0, $self->{size_y}, 0 );
+    foreach my $ix ( 0 .. $self->{size_x} - 1 ) {
+	foreach my $iy ( 0 .. $self->{size_y} - 1 ) {
 	    if ( $self->{grid}[$ix][$iy] ) {
 		$min_x = $ix if $ix < $min_x;
 		$max_x = $ix;
