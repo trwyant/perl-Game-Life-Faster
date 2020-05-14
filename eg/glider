@@ -7,7 +7,12 @@ use 5.008001;
 use strict;
 use warnings;
 
-use Game::Life::Faster;
+use File::Basename qw{ dirname };
+# The following hack is so that, if we're being run from a distribution
+# directory, we use the version of Game::Life::Faster in that directory
+# no matter what our default directory is.
+use if -d "@{[ dirname( $0 ) ]}/../blib/lib",
+    lib => "@{[ dirname( $0 ) ]}/../blib/lib";
 use Getopt::Long 2.33 qw{ :config auto_version };
 use List::Util qw{ min };
 use Pod::Usage;
