@@ -152,33 +152,27 @@ EOD
     'Text grid after running glider 10 steps';
 
 {
-    my $want = <<'EOD';
+    my $coord = $life->get_used_grid_coord();
+    is $coord, [ 3, 5, 2, 4 ], 'Occupied grid bounding box';
+    my $grid = $life->get_used_text_grid();
+    is $grid, <<'EOD', 'Occupied grid is expected string';
 ..X
 X.X
 .XX
 EOD
-    my ( $x, $y, $grid ) = $life->get_used_text_grid();
-    is $x, 3, 'Occupied grid starts at line 3';
-    is $y, 2, 'Occupied grid starts at column 2';
-    is $grid, $want, 'Occupied grid is expected string';
-    is scalar $life->get_used_text_grid(), $want,
-	'In scalar context just get occupied grid';
 }
 
 {
-    my $want = <<'EOD';
+    my $coord = $life->get_active_grid_coord();
+    is $coord, [ 2, 6, 1, 5 ], 'Active grid bounding box';
+    my $grid = $life->get_active_text_grid();
+    is $grid, <<'EOD', 'Active grid is expected string';
 .....
 ...X.
 .X.X.
 ..XX.
 .....
 EOD
-    my ( $x, $y, $grid ) = $life->get_active_text_grid();
-    is $x, 2, 'Active grid starts at line 2';
-    is $y, 1, 'Active grid starts at column 1';
-    is $grid, $want, 'Active grid is expected string';
-    is scalar $life->get_active_text_grid(), $want,
-	'In scalar context just get active grid';
 }
 
 $life->place_points( 1, 0, [ [ 1, 1, 1 ] ] );

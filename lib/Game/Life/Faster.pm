@@ -63,65 +63,8 @@ sub clear {
     return $self;
 }
 
-sub get_breeding_rules {
+sub get_active_grid_coord {
     my ( $self ) = @_;
-    return $self->get_rule( 'breed' );
-}
-
-sub get_grid {
-    my ( $self ) = @_;
-    if ( $self->{grid} ) {
-	my @rslt;
-	foreach my $x ( 0 .. $self->{max_x} ) {
-	    if ( $self->{grid}{$x} ) {
-		push @rslt, [];
-		foreach my $y ( 0 .. $self->{max_y} ) {
-		    push @{ $rslt[-1] }, $self->{grid}{$x}{$y} ?
-			$self->{grid}{$x}{$y}[0] ? 1 : 0 : 0;
-		}
-	    } else {
-		push @rslt, [ ( 0 ) x $self->{size_y} ];
-	    }
-	}
-	return \@rslt;
-    } else {
-	return [ ( [ ( 0 ) x $self->{size_y} ] ) x $self->{size_x} ];
-    }
-}
-
-sub get_living_rules {
-    my ( $self ) = @_;
-    return $self->get_rule( 'live' );
-}
-
-sub get_text_grid {
-    my ( $self, $living, $dead ) = @_;
-    $living	||= 'X';
-    $dead	||= '.';
-    my @rslt;
-    if ( $self->{grid} ) {
-	foreach my $x ( 0 .. $self->{max_x} ) {
-	    if ( $self->{grid}{$x} ) {
-		push @rslt, join '', map {
-		    ( $self->{grid}{$x}{$_} && $self->{grid}{$x}{$_}[0]) ?
-		    $living : $dead
-		} 0 .. $self->{max_y};
-	    } else {
-		push @rslt, $dead x $self->{size_y};
-	    }
-	}
-    } else {
-	@rslt = ( $dead x $self->{size_y} ) x $self->{size_x};
-    }
-    return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
-}
-
-sub get_active_text_grid {
-    my ( $self, $living, $dead ) = @_;
-    $self->{grid}
-	or return;
-    $living	||= 'X';
-    $dead	||= '.';
     my ( $min_x, $max_x, $min_y, $max_y ) = ( $self->{size_x}, 0,
 	$self->{size_y}, 0 );
     foreach my $ix ( keys %{ $self->{changed} } ) {
@@ -133,86 +76,109 @@ sub get_active_text_grid {
 	}
     }
     $max_x < $min_x
-	and return;
-    my $rslt;
-    foreach my $x ( $min_x .. $max_x ) {
-	foreach my $y ( $min_y .. $max_y ) {
-	    # Yes, I'm paranoid about autovivification.
-	    $rslt .= ( $self->{grid}{$x} && $self->{grid}{$x}{$y} &&
-		$self->{grid}{$x}{$y}[0] ) ? $living : $dead;
-	}
-	$rslt .= "\n";
-    }
+	and croak 'No active cells';
+    return [ $min_x, $max_x, $min_y, $max_y ];
+}
 
-    return ( $min_x, $min_y, $rslt );
+sub get_breeding_rules {
+    my ( $self ) = @_;
+    return $self->get_rule( 'breed' );
+}
+
+sub get_grid {
+    my ( $self, $coord ) = @_;
+    $coord ||= $self->get_grid_coord();
+    $self->{grid}
+	or return [ ( [ ( 0 ) x ( $coord->[3] - $coord->[2] + 1 ) ] ) x
+	    ( $coord->[1] - $coord->[0] + 1 ) ];
+    my @rslt;
+    foreach my $x ( $coord->[0] .. $coord->[1] ) {
+	if ( $self->{grid}{$x} ) {
+	    push @rslt, [];
+	    foreach my $y ( $coord->[2] .. $coord->[3] ) {
+		push @{ $rslt[-1] }, $self->{grid}{$x}{$y} ?
+		    $self->{grid}{$x}{$y}[0] ? 1 : 0 : 0;
+	    }
+	} else {
+	    push @rslt, [ ( 0 ) x ( $coord->[3] - $coord->[2] + 1 ) ];
+	}
+    }
+    return \@rslt;
+}
+
+sub get_grid_coord {
+    my ( $self ) = @_;
+    return [ 0, $self->{max_x}, 0, $self->{max_y} ];
+}
+
+sub get_living_rules {
+    my ( $self ) = @_;
+    return $self->get_rule( 'live' );
+}
+
+sub get_text_grid {
+    my ( $self, $living, $dead, $coord ) = @_;
+    $living	||= 'X';
+    $dead	||= '.';
+    $coord ||= $self->get_grid_coord();
+    my @rslt;
+    if ( $self->{grid} ) {
+	foreach my $x ( $coord->[0] .. $coord->[1] ) {
+	    if ( $self->{grid}{$x} ) {
+		push @rslt, join '', map {
+		    ( $self->{grid}{$x}{$_} && $self->{grid}{$x}{$_}[0]) ?
+		    $living : $dead
+		} $coord->[2] .. $coord->[3];
+	    } else {
+		push @rslt, $dead x ( $coord->[3] - $coord->[2] + 1 );
+	    }
+	}
+    } else {
+	@rslt = ( $dead x ( $coord->[3] - $coord->[2] + 1 ) ) x (
+	    $coord->[1] - $coord->[0] + 1 );
+    }
+    return wantarray ? @rslt : join '', map { "$_\n" } @rslt;
+}
+
+sub get_active_text_grid {
+    my ( $self, $living, $dead ) = @_;
+    return $self->get_text_grid( $living, $dead,
+	$self->get_active_grid_coord() );
 }
 
 sub get_used_text_grid {
     my ( $self, $living, $dead ) = @_;
-    $self->{grid}
-	or return;
-    $living	||= 'X';
-    $dead	||= '.';
-    my ( $min_x, $max_x, $min_y, $max_y );
-    for ( $min_x = 0; $min_x < $self->{size_x}; $min_x++ ) {
-	$self->{living_x}[$min_x]
-	    and last;
-    }
-    for ( $max_x = $self->{size_x}; $max_x >= $min_x; ) {
-	$self->{living_x}[--$max_x]
-	    and last;
-    }
-    $max_x < $min_x
-	and return;
-    for ( $min_y = 0; $min_y < $self->{size_y}; $min_y++ ) {
-	$self->{living_y}[$min_y]
-	    and last;
-    }
-    for ( $max_y = $self->{size_y}; $max_y >= $min_y; ) {
-	$self->{living_y}[--$max_y]
-	    and last;
-    }
-
-    my $rslt;
-    foreach my $x ( $min_x .. $max_x ) {
-	foreach my $y ( $min_y .. $max_y ) {
-	    # Yes, I'm paranoid about autovivification.
-	    $rslt .= ( $self->{grid}{$x} && $self->{grid}{$x}{$y} &&
-		$self->{grid}{$x}{$y}[0] ) ? $living : $dead;
-	}
-	$rslt .= "\n";
-    }
-
-    return ( $min_x, $min_y, $rslt );
+    return $self->get_text_grid( $living, $dead,
+	$self->get_used_grid_coord() );
 }
 
 sub get_used_grid {
     my ( $self ) = @_;
-    $self->{grid}
-	or return;
-    my @rslt;
-    my $skip_x = 0;
-    foreach my $x ( 0 .. $self->{max_x} ) {
-	if ( $self->{grid}{$x} ) {
-	    push @rslt, ( undef ) x $skip_x;
-	    my $skip_y = $skip_x = 0;
-	    foreach my $y ( 0 .. $self->{max_y} ) {
-		if ( $self->{grid}{$x}{$y} &&
-		    defined $self->{grid}{$x}{$y}[0] ) {
-		    @rslt > $x
-			or push @rslt, [];
-		    push @{ $rslt[-1] }, ( undef ) x $skip_y,
-			$self->{grid}{$x}{$y}[0];
-		    $skip_y = 0;
-		} else {
-		    $skip_y++;
-		}
-	    }
-	} else {
-	    $skip_x++;
+    return $self->get_grid( $self->get_used_grid_coord() );
+}
+
+sub get_used_grid_coord {
+    my ( $self ) = @_;
+    my $min_x = $self->{size_x};
+    for ( $min_x = 0; $min_x < $self->{size_x}; $min_x++ ) {
+	$self->{living_x}[$min_x]
+	    or next;
+	my ( $max_x, $min_y, $max_y );
+	for ( $max_x = $self->{size_x}; $max_x >= $min_x; ) {
+	    $self->{living_x}[--$max_x]
+		and last;
 	}
+	for ( $min_y = 0; $min_y < $self->{size_y}; $min_y++ ) {
+	    $self->{living_y}[$min_y]
+		and last;
+	}
+	for ( $max_y = $self->{size_y}; $max_y >= $min_y; ) {
+	    $self->{living_y}[--$max_y]
+		and last;
+	}
+	return [ $min_x, $max_x, $min_y, $max_y ];
     }
-    return \@rslt;
+    croak 'No occupied cells';
 }
 
 sub place_points {
@@ -473,23 +439,35 @@ invocant.
 
 This method is an extension to L<Game::Life|Game::Life>.
 
+=head2 get_active_grid_coord
+
+ my $coord = $life->get_active_text_grid();
+
+This method returns the coordinates of the bounding rectangle for all
+active points in the grid -- that is, all whose value changed in the
+most-recent iteration (if any) or whose values were manually changed
+since the most-recent iteration. An exception is thrown if there are no
+active points.
+
+The return is a reference to an array containing the minimum and maximum
+X coordinate followed by the minimum and maximum Y coordinate; that is:
+
+ [ $min_x, $max_x, $min_y, $max_y ]
+
+Note that these intervals are closed on both ends. To iterate over the
+active rows you would specify C<$min_x .. $max_x>.
+
 =head2 get_active_text_grid
 
- my ( $x, $y, $grid ) = $life->get_active_text_grid()
- print "${grid}at row $x column $y\n"
+ print $life->get_active_text_grid( $living, $dead )
 
-This convenience method returns the active portion of the grid as
-text. Specifically, the returns are the number of the first row that
-contains an active cell, the number of the column that contains the first
-active cell, and the text grid with each line C<"\n">-terminated.
+This convenience method returns the result of
 
-A cell is considered active if its number of neighbors changed in the
-most-recent call to L<process()|/process>, as a result of any manual
-modifications since that call, or both.
+ $life->get_text_grid( $living, $dead,
+     $life->get_active_grid_coord() )
 
-If there are no active cells, nothing is returned.
-
-If called in scalar context you get the active grid.
+The arguments are the character to represent an occupied cell and the
+character to represent an empty cell.
 
 =head2 get_breeding_rules
 
@@ -506,13 +484,32 @@ originally-specified order.
 
 =head2 get_grid
 
- use Data::Dumper;
- print Dumper( $life->get_grid() );
+ my $grid = $life->get_grid( $coord )
 
-This method returns the state of the grid, as a reference to an array of
-array references. The contents of the inner arrays represent the states
-of the cells, with a true value representing a "living" cell and a false
-value representing a "dead" cell.
+This method returns the grid as a reference to an array of array
+references. The argument is a reference to the minimum and maximum X and
+Y coordinates:
+
+ [ $min_x, $max_x, $min_y, $max_y ]
+
+If the argument is omitted you get the entire grid.
+
+=head2 get_grid_coord
+
+ my $coord = $life->get_grid_coord();
+
+This method returns the coordinates of the bounding rectangle for the
+entire grid.
+
+The return is a reference to an array containing the minimum and maximum
+X coordinate followed by the minimum and maximum Y coordinate. Assuming
+the size specified when the object was created was
+
+ [ $size_x, $size_y ]
+
+the return will be
+
+ [ 0, $size_x - 1, 0, $size_y - 1 ]
 
 =head2 get_living_rules
 
@@ -569,6 +566,21 @@ The default is C<'.'>.
 As an incompatible change to the same-named method of
 L<Game::Life|Game::Life>, if called in scalar context this method
 returns a single string representing the entire grid.
+
+=head2 get_used_grid_coord
+
+ my $coord = $life->get_used_grid_coord()
+
+This method returns the coordinates of the bounding rectangle for all
+occupied points in the grid.
+
+The return is a reference to an array containing the minimum and maximum
+X coordinate followed by the minimum and maximum Y coordinate; that is:
+
+ [ $min_x, $max_x, $min_y, $max_y ]
+
+Note that these intervals are closed on both ends. To iterate over the
+active rows you would specify C<$min_x .. $max_x>.
 
 =head2 get_used_text_grid
 
