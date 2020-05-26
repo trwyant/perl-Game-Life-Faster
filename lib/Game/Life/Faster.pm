@@ -313,15 +313,14 @@ sub set_point_state {
     sub set_rule {
 	my ( $self, $kind, $rule ) = @_;
 	$dflt{$kind}
-	    or croak "'$kind' is not a valid rule kind";
+	    or croak "'$kind' is not a valid rule name";
 	$rule ||= $dflt{$kind};
-	my $name = ucfirst $kind;
 	ARRAY_REF eq ref $rule
-	    or croak 'Breed rule must be an array reference';
+	    or croak "\u$kind rule must be an array reference";
 	$self->{$kind} = [];
 	foreach ( @{ $rule } ) {
 	    $_ =~ NON_NEGATIVE_INTEGER_RE
-		or croak "$name rule must be a reference to an array of non-negative integers";
+		or croak "\u$kind rule must be a reference to an array of non-negative integers";
 	    $self->{$kind}[$_] = 1;
 	}
 	return;
