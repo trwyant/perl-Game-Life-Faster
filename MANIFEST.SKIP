@@ -20,5 +20,6 @@ CVS/
 \.swp$
 ^tools/
 ^TODO$
+^\.travis\.yml$
 ^xt/author/optionals/
 ^Game-Life-Faster
