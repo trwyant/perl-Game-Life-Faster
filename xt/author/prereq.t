@@ -11,6 +11,7 @@ eval {
 } or plan skip_all => 'Test::Prereq::Meta not available';
 
 my $tpm = Test::Prereq::Meta->new(
+    prune	=> 'blib/script',
 );
 
 $tpm->all_prereq_ok();

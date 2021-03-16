@@ -126,8 +126,9 @@ sub requires_perl {
 }
 
 sub script_files {
-    return [
-    ];
+    return [ qw{
+	script/game-life-faster
+	} ];
 }
 
 sub version_from {
