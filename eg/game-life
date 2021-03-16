@@ -163,6 +163,26 @@ sub cmd_living {
     return;
 }
 
+sub cmd_load {
+    local @ARGV = @_;
+    my %o = %opt;
+    GetOptions( \%o,
+	qw{ living=s },
+    ) or return;
+    my ( $file, $x, $y ) = @ARGV;
+    $x ||= 0;
+    $y ||= 0;
+    open my $fh, '<:encoding(utf-8)', $file
+	or die "Unable to open $file: $!\n";
+    my @rows;
+    local $_ = undef;
+    while ( <$fh> ) {
+	s/ \s+ \z //smx;
+	push @rows, $_;
+    }
+    $life->place_text_points( $x, $y, $o{living}, @rows );
+}
+
 sub cmd_new {
     my @arg = @_;
     Getopt::Long::GetOptionsFromArray( \@arg, \%opt, qw{ faster! } )
@@ -251,6 +271,10 @@ sub cmd_source {
 	or die "Failed to open $path: $!\n";
     push @reader_stack, sub { <$fh> };
     return;
+}
+
+sub cmd_step {
+    goto &cmd_process;
 }
 
 sub cmd_unset_point {
@@ -569,6 +593,22 @@ option, but the script does not exit.
 This command displays the L<-living|/-living> setting. If an argument is
 provided, the setting is changed to the first character of that value.
 
+=head2 load
+
+ life> load -living * grid.txt 2 2
+
+This command loads the grid with the contents of the file specified as
+the first argument. This file is a picture of the desired grid as "ASCII
+art".
+
+The second and third arguments specify the row and column coordinates of
+the top left corner of the grid. Both default to C<0>.
+
+This command also takes the option C<-living>, which specifies the
+character which represents a living cell. The default is the value of
+C<-living> which was specified when the script was launched. Any cell
+represented by a character other than this is considered dead.
+
 =head2 new
 
  life> new -faster 20 2 2,3
@@ -618,6 +658,10 @@ This command causes the cell in the specified row and columns to be set
  life> source life.source
 
 This command opens the given file and reads commands from it.
+
+=head2 step
+
+This is just a synonym for L<process|/process>.
 
 =head2 unset_point
 
