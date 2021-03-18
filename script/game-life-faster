@@ -8,8 +8,34 @@ use warnings;
 use Getopt::Long 2.33 qw{ :config auto_version };
 use List::Util qw{ max };
 use Pod::Usage;
+use Scalar::Util qw{ looks_like_number };
 use Term::ReadLine;
 use Text::ParseWords qw{ shellwords };
+
+BEGIN {
+    local $@ = undef;
+    eval {
+	require Time::HiRes;
+	Time::HiRes->import( 'sleep' );
+	*_validate_pause = sub {
+	    my ( $name, $val ) = @_;
+	    looks_like_number( $val )
+		and $val >= 0
+		or die "\u$name must be a non-negative number\n";
+	    return;
+	};
+	1;
+    } or do {
+	*_validate_pause = sub {
+	    my ( $name, $val ) = @_;
+	    $val =~ m/ \A [0-9]+ \z /smx
+		and $val >= 0
+		or die "\u$name must be a non-negative integer\n";
+	    return;
+	};
+	warn "Time::HiRes unavailable. Pause values must be integers\n";
+    };
+}
 
 our $VERSION = '0.004_01';
 
@@ -42,6 +68,7 @@ my %opt = (
     faster	=> 1,
     live	=> [ 2, 3 ],
     living	=> 'X',
+    pause	=> 0,
     profile	=> -f PROFILE ? PROFILE : undef,
     size	=> 20,
 );
@@ -52,6 +79,7 @@ GetOptions( \%opt,
     qw{ autoclear! autoprint! faster! },
     'dead=s'	=> \&_state_opt,
     'living=s'	=> \&_state_opt,
+    'pause=f'	=> \&_pause_opt,
     'profile=s'	=> sub {
 	-f $_[1]
 	    or die "File $_[1] not found\n";
@@ -208,6 +236,14 @@ sub cmd_new {
     return;
 }
 
+sub cmd_pause {
+    my ( $pause ) = @_;
+    defined $pause
+	and _pause_opt( pause => $pause );
+    print "pause $opt{pause}\n";
+    return;
+}
+
 sub cmd_used {
     my ( $living, $dead ) = @_;
     my ( $min_x, $min_y, $rslt ) = $life->get_used_text_grid(
@@ -225,14 +261,19 @@ sub cmd_place_points {
 
 sub cmd_process {
     my ( $steps ) = @_;
-    my $changes = $life->process( $steps );
-    $opt{autoclear}
-	and cmd_clear_screen();
-    local $opt{autoclear} = 0;
-    $opt{faster}
-	and print "$changes cells changed state on the last iteration\n";
-    $opt{autoprint}
-	and cmd_grid();
+    ( $steps, my $iter8 ) = $opt{pause} ? ( 1, $steps ) : ( $steps, 1 );
+    for ( 1 .. $iter8 ) {
+	my $changes = $life->process( $steps );
+	$opt{autoclear}
+	    and cmd_clear_screen();
+	local $opt{autoclear} = 0;
+	$opt{faster}
+	    and print "$changes cells changed state on the last iteration\n";
+	$opt{autoprint}
+	    and cmd_grid();
+	$opt{pause}
+	    and sleep $opt{pause};
+    }
     return;
 }
 
@@ -304,6 +345,13 @@ sub _expand {
 	    $val->[0] :
 	    q<'> . join( ',', @{ $val } ) . q<'> :
 	$val;
+}
+
+sub _pause_opt {
+    my ( $name, $val ) = @_;
+    _validate_pause( $name, $val );
+    $opt{$name} = $val;
+    return;
 }
 
 sub _reader {
@@ -440,6 +488,16 @@ This option specifies the character to be used for "living" cells. If a
 letter is specified, uses of this letter on input will be case-blind.
 
 The default is C<-living X>.
+
+=head2 -pause
+
+ -pause 0.25
+
+This option specifies the pause after each iteration, in seconds. It
+takes fractional values, but these are only useful if
+L<Time::HiRes|Time::HiRes> can be loaded.
+
+The default is C<-pause 0>.
 
 =head2 -profile
 
@@ -614,6 +672,11 @@ This command replaces the old game object with a new one. The arguments
 are the same as for the script itself, but the only supported option is
 L<-faster|/-faster>. All arguments and options default to their previous
 value.
+
+=head2 pause
+
+This command displays the L<-pause|/-pause> setting. If an argument is
+provided, the setting is changed to that value.
 
 =head2 place_points
 
