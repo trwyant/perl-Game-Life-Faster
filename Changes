@@ -1,3 +1,15 @@
+0.004_02	2021-03-19	T. R. Wyant
+    Move eg/game-life to script/game-life-faster and install it. Thanks
+    to Perlancar for the suggestion.
+
+    Add -pause option to script/game-life-faster.  This pauses the given
+    number of seconds after each iteration. The value can be fractional
+    if Time::HiRes can be loaded. There is also a 'pause' command, so
+    the value can be changed interactively.
+
+    Add 'load' command to script/game-life-faster.  This loads a grid
+    (or portion thereof) specified as ASCII art.
+
 0.004_01	2021-03-13	T. R. Wyant
     Add rt.cpan.org back to bug reporting methods. Long live RT!
 
