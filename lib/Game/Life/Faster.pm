@@ -8,7 +8,7 @@ use warnings;
 use Carp;
 use List::Util qw{ max min };
 
-our $VERSION = '0.004_02';
+our $VERSION = '0.005';
 
 use constant ARRAY_REF	=> ref [];
 
