@@ -15,6 +15,7 @@ META.json
 META.yml
 README
 script/game-life-faster
+SECURITY
 t/basic.t
 t/game.t
 xt/author/changes.t
