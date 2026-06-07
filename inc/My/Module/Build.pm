@@ -69,8 +69,7 @@ C<--test_files> argument.
 =head1 SUPPORT
 
 Support is by the author. Please file bug reports at
-L<https://rt.cpan.org/Public/Dist/Display.html?Name=Game-Life-Faster>,
-L<https://github.com/trwyant/perl-Game-Life-Faster/issues>, or in
+L<https://github.com/trwyant/perl-Game-Life-Faster/issues> or in
 electronic mail to the author.
 
 =head1 AUTHOR
