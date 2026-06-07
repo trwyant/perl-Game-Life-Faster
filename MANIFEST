@@ -7,8 +7,8 @@ eg/README
 inc/My/Module/Build.pm
 inc/My/Module/Meta.pm
 lib/Game/Life/Faster.pm
-LICENSES/Artistic
-LICENSES/Copying
+LICENSE-Artistic
+LICENSE-GPL
 Makefile.PL
 MANIFEST
 META.json
